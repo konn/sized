@@ -41,9 +41,6 @@ import Data.Constraint
 import Data.Constraint.Forall
 import Data.ListLike (FoldableLL)
 
-type Reflex a = a ~ a
-
-
 newtype Sized f n a =
   Sized { runSized :: f a
         } deriving (Read, Show, Eq, Ord, Typeable,
