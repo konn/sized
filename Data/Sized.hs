@@ -1,10 +1,10 @@
-{-# LANGUAGE ConstraintKinds, LiberalTypeSynonyms #-}
-{-# LANGUAGE DataKinds, DeriveDataTypeable, DeriveFoldable, DeriveFunctor  #-}
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures, LambdaCase        #-}
-{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction              #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables               #-}
-{-# LANGUAGE StandaloneDeriving, TypeFamilies, TypeOperators, ViewPatterns #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable, DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor, DeriveTraversable, FlexibleContexts             #-}
+{-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving           #-}
+{-# LANGUAGE KindSignatures, LambdaCase, LiberalTypeSynonyms                #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction               #-}
+{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables                #-}
+{-# LANGUAGE StandaloneDeriving, TypeFamilies, TypeOperators, ViewPatterns  #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 module Data.Sized
        (Sized, empty, toList, toContainer, replicate, replicate',
@@ -21,25 +21,23 @@ module Data.Sized
         ConsView (..), viewCons, SnocView(..), viewSnoc,
         pattern (:<), pattern NilL, pattern (:>), pattern NilR)
        where
-import           Data.Foldable      (Foldable)
-import           Data.ListLike      (ListLike)
-import qualified Data.ListLike      as LL
-import qualified Data.Sequence      as Seq
-import           Data.Traversable   (Traversable)
-import           Data.Type.Equality hiding (trans)
+import           Data.Constraint
+import           Data.Constraint.Forall
+import           Data.Foldable          (Foldable)
+import           Data.ListLike          (FoldableLL, ListLike)
+import qualified Data.ListLike          as LL
+import qualified Data.Sequence          as Seq
+import           Data.Traversable       (Traversable)
+import           Data.Type.Equality     hiding (trans)
 import           Data.Type.Natural
-import           Data.Type.Ordinal  (Ordinal)
-import           Data.Type.Ordinal  (ordToInt)
-import           Data.Typeable      (Typeable)
-import qualified Data.Vector        as V
-import           Prelude            hiding (drop, elem, head, init, last,
-                                     length, map, notElem, null, replicate,
-                                     reverse, splitAt, tail, take, unzip, zip,
-                                     zipWith, (!!))
-import qualified Prelude            as P
-import Data.Constraint
-import Data.Constraint.Forall
-import Data.ListLike (FoldableLL)
+import           Data.Type.Ordinal      (Ordinal, ordToInt)
+import           Data.Typeable          (Typeable)
+import qualified Data.Vector            as V
+import           Prelude                hiding (drop, elem, head, init, last,
+                                         length, map, notElem, null, replicate,
+                                         reverse, splitAt, tail, take, unzip,
+                                         zip, zipWith, (!!))
+import qualified Prelude                as P
 
 newtype Sized f n a =
   Sized { runSized :: f a
@@ -351,17 +349,9 @@ viewCons sz = case sing :: SNat n of
   SZ    -> NilCV
   SS n' -> withSingI n' $ head sz ::- tail sz
 
-slen' :: (SingI n, ListLike (f a) a) => Sized f n a -> SNat n
-slen' (viewCons -> _ ::- as) = SS $ slen' as
-slen' (viewCons -> NilCV)     = SZ
-
 infixr 5 :<
 pattern a :< b <- (viewCons -> a ::- b)
 pattern NilL   <- (viewCons -> NilCV)
-
-slen :: (SingI n, ListLike (f a) a) => Sized f n a -> SNat n
-slen (_ :< as) = SS $ slen as
-slen NilL      = SZ
 
 data SnocView f n a where
   NilSV :: SnocView f Z a
