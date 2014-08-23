@@ -7,11 +7,13 @@
 {-# LANGUAGE StandaloneDeriving, TypeFamilies, TypeOperators, ViewPatterns  #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 module Data.Sized
-       (Sized, empty, toList, toContainer, replicate, replicate',
+       (Sized(), empty, toList, toContainer, replicate, replicate',
         singleton, uncons,
         unsafeFromList, unsafeFromList', fromList, fromList',
-        unsafeFromContainer, unsafeFromContainer',
-        fromContainer, fromContainer',
+        fromListWithDefault, fromListWithDefault',
+        unsafeToSized, unsafeToSized',
+        toSized, toSized', toSizedWithDefault,
+        toSizedWithDefault',
         append, head, last, tail, init, null,
         length, sLength, map, reverse, intersperse,
         take, takeAtMost, drop, splitAt, splitAtMost, elem, notElem,
@@ -19,7 +21,8 @@ module Data.Sized
         findIndex, sFindIndex, findIndices, sFindIndices,
         elemIndices, sElemIndices, zip, zipSame, zipWith, zipWithSame, unzip,
         ConsView (..), viewCons, SnocView(..), viewSnoc,
-        pattern (:<), pattern NilL, pattern (:>), pattern NilR)
+        pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+        SomeSized(..), toSomeSized)
        where
 import           Data.Constraint
 import           Data.Constraint.Forall
@@ -28,7 +31,6 @@ import           Data.ListLike          (FoldableLL, ListLike)
 import qualified Data.ListLike          as LL
 import qualified Data.Sequence          as Seq
 import           Data.Traversable       (Traversable)
-import           Data.Type.Equality     hiding (trans)
 import           Data.Type.Natural
 import           Data.Type.Ordinal      (Ordinal, ordToInt)
 import           Data.Typeable          (Typeable)
@@ -38,11 +40,29 @@ import           Prelude                hiding (drop, elem, head, init, last,
                                          reverse, splitAt, tail, take, unzip,
                                          zip, zipWith, (!!))
 import qualified Prelude                as P
+import Data.Type.Monomorphic
 
 newtype Sized f n a =
   Sized { runSized :: f a
-        } deriving (Read, Show, Eq, Ord, Typeable,
+        } deriving (Eq, Ord, Typeable,
                     Functor, Foldable, Traversable)
+
+instance Show (f a) => Show (Sized f n a) where
+  showsPrec d (Sized x) = showsPrec d x
+
+data SomeSized f a where
+  SomeSized :: (ListLike (f a) a, SingI n) => Sized f (n :: Nat) a -> SomeSized f a
+
+deriving instance Typeable SomeSized
+
+deriving instance Show (f a) => Show (SomeSized f a)
+instance Eq (f a) => Eq (SomeSized f a) where
+  (SomeSized (Sized xs)) == (SomeSized (Sized ys)) = xs == ys
+
+toSomeSized :: ListLike (f a) a => f a -> SomeSized f a
+toSomeSized xs =
+  case promote $ LL.length xs of
+    Monomorphic sn -> withSingI sn $ SomeSized $ unsafeToSized sn xs
 
 toContainer :: Sized f n a -> f a
 toContainer = runSized
@@ -103,10 +123,21 @@ unsafeFromList sn xs = Sized $ LL.fromList $ P.take (sNatToInt sn) $ xs
 
 {-# RULES
 "unsafeFromList/Zero" forall (sz :: SNat Z) xs.
-  unsafeFromList sz xs = unsafeFromContainer sz xs
+  unsafeFromList sz xs = unsafeToSized sz xs
 "unsafeFromList/List" forall sn (xs :: [a]).
   unsafeFromList sn xs = Sized (P.take (sNatToInt sn) xs)
  #-}
+
+fromListWithDefault :: ListLike (f a) a => SNat n -> a -> [a] -> Sized f n a
+fromListWithDefault sn def xs =
+  Sized $ LL.fromList xs `LL.append` LL.replicate (sNatToInt sn - P.length xs) def
+{-# INLINABLE fromListWithDefault #-}
+
+
+fromListWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> [a] -> Sized f n a
+fromListWithDefault' = withSing fromListWithDefault
+{-# INLINE fromListWithDefault' #-}
+
 
 fromList :: ListLike (f a) a => SNat n -> [a] -> Maybe (Sized f n a)
 fromList sn xs =
@@ -119,7 +150,7 @@ fromList sn xs =
 "fromList/Zero" forall (sn :: SNat Z) xs.
   fromList sn xs = Just $ Sized $ LL.empty
 "fromList/List" forall sn (xs :: [a]).
-  fromList sn xs = fromContainer sn xs
+  fromList sn xs = toSized sn xs
   #-}
 
 fromList' :: (ListLike (f a) a, SingI (n :: Nat)) => [a] -> Maybe (Sized f n a)
@@ -130,34 +161,44 @@ unsafeFromList' :: (SingI (n :: Nat), ListLike (f a) a) => [a] -> Sized f n a
 unsafeFromList' = withSing unsafeFromList
 {-# INLINE unsafeFromList' #-}
 
-unsafeFromContainer :: ListLike (f a) a => SNat n -> f a -> Sized f n a
-unsafeFromContainer sn xs = Sized $ LL.take (sNatToInt sn) xs
-{-# INLINE [2] unsafeFromContainer #-}
+unsafeToSized :: ListLike (f a) a => SNat n -> f a -> Sized f n a
+unsafeToSized sn xs = Sized $ LL.take (sNatToInt sn) xs
+{-# INLINE [2] unsafeToSized #-}
 
 {-# RULES
-"unsafeFromContainer/Zero" forall (sn :: SNat Z) xs.
-  unsafeFromContainer sn xs = Sized $ LL.empty
+"unsafeToSized/Zero" forall (sn :: SNat Z) xs.
+  unsafeToSized sn xs = Sized $ LL.empty
   #-}
 
-fromContainer :: ListLike (f a) a => SNat n -> f a -> Maybe (Sized f n a)
-fromContainer sn xs =
+toSized :: ListLike (f a) a => SNat n -> f a -> Maybe (Sized f n a)
+toSized sn xs =
   if LL.length xs < sNatToInt sn
   then Nothing
-  else Just $ unsafeFromContainer sn xs
-{-# INLINE [2] fromContainer #-}
+  else Just $ unsafeToSized sn xs
+{-# INLINABLE [2] toSized #-}
 
 {-# RULES
-"fromContainer/Zero" forall (sn :: SNat Z) xs.
-  fromContainer sn xs = Just $ Sized LL.empty
+"toSized/Zero" forall (sn :: SNat Z) xs.
+  toSized sn xs = Just $ Sized LL.empty
   #-}
 
-fromContainer' :: (ListLike (f a) a, SingI (n :: Nat)) => f a -> Maybe (Sized f n a)
-fromContainer' = withSing fromContainer
-{-# INLINE fromContainer' #-}
+toSizedWithDefault :: ListLike (f a) a => SNat n -> a -> f a -> Sized f n a
+toSizedWithDefault sn def xs =
+  Sized $ xs `LL.append` LL.replicate (sNatToInt sn - LL.length xs) def
+{-# INLINABLE toSizedWithDefault #-}
 
-unsafeFromContainer' :: (SingI (n :: Nat), ListLike (f a) a) => f a -> Sized f n a
-unsafeFromContainer' = withSing unsafeFromContainer
-{-# INLINE unsafeFromContainer' #-}
+toSizedWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> f a -> Sized f n a
+toSizedWithDefault' = withSing toSizedWithDefault
+{-# INLINE toSizedWithDefault' #-}
+
+
+toSized' :: (ListLike (f a) a, SingI (n :: Nat)) => f a -> Maybe (Sized f n a)
+toSized' = withSing toSized
+{-# INLINE toSized' #-}
+
+unsafeToSized' :: (SingI (n :: Nat), ListLike (f a) a) => f a -> Sized f n a
+unsafeToSized' = withSing unsafeToSized
+{-# INLINE unsafeToSized' #-}
 
 toList :: ListLike (f a) a => Sized f n a -> [a]
 toList = LL.toList . runSized
@@ -338,7 +379,7 @@ unzip (Sized xys) =
 
 data ConsView f n a where
   NilCV :: ConsView f Z a
-  (::-) :: SingI n => a -> Sized f n a -> ConsView f (S n) a
+  (::-) :: a -> Sized f n a -> ConsView f (S n) a
 
 infixr 5 ::-
 
@@ -368,3 +409,7 @@ viewSnoc sz = case sing :: SNat n of
 infixl 5 :>
 pattern a :> b <- (viewSnoc -> a :-: b)
 pattern NilR   <- (viewSnoc -> NilSV)
+
+isNull :: (SingI (n :: Nat), ListLike (f a) a) => Sized f n a -> Bool
+isNull NilL = True
+isNull _    = False
