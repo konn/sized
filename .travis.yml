@@ -10,11 +10,11 @@ before_install:
   - sudo ln -s `which cabal-1.20` /usr/bin/cabal
 install:
   - cabal-1.20 update
-  - cabal-1.20 install --only-dependencies --enable-tests --enable-benchmarks -j2
+  - cabal-1.20 install --only-dependencies --enable-tests --enable-benchmarks -j
 
 script:
   - cabal-1.20 configure --enable-tests --enable-benchmarks -v2
-  - cabal-1.20 build
+  - cabal-1.20 build -j
   - cabal-1.20 test
   - cabal-1.20 check
   - cabal-1.20 sdist
