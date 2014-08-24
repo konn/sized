@@ -14,7 +14,7 @@
 --   @Sized Vector n a@ but O(i) for @Sized [] n a@.
 --
 --  This module also provides powerful view types and pattern synonyms to
---  inspect the sized sequence. See <#patterns Views and Patterns> for more detail.
+--  inspect the sized sequence. See <#ViewsAndPatterns Views and Patterns> for more detail.
 module Data.Sized
        ( -- * Main Data-types
          Sized(), ListLikeF, SomeSized(..),
@@ -50,9 +50,18 @@ module Data.Sized
          elem, notElem, find, findIndex, sFindIndex, findIndices, sFindIndices,
          elemIndex, sElemIndex, elemIndices, sElemIndices,
          -- * Views and Patterns
+         -- $ViewsAndPatterns
+
+         -- ** Views
          -- $views
+
+         -- ** Patterns
+         -- $patterns
+
+         -- ** Definitions
+         viewCons, ConsView (..), viewSnoc, SnocView(..),
+
          pattern (:<), pattern NilL , pattern (:>), pattern NilR,
-         ConsView (..), viewCons, SnocView(..), viewSnoc
        ) where
 
 import Data.Sized.Internal
@@ -189,7 +198,7 @@ singleton = withListLikeF (Proxy :: Proxy (f a)) $ Sized . LL.singleton
 
 -- | Take the 'head' and 'tail' of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
---   see  <#patterns Views and Patterns> section.
+--   see  <#ViewsAndPatterns Views and Patterns> section.
 uncons :: ListLikeF f => Sized f (S n) a -> (a, Sized f n a)
 uncons = givenListLikeF (\xs -> (LL.head xs, Sized $ LL.tail xs)) . runSized
 {-# INLINE uncons #-}
@@ -314,28 +323,28 @@ infixr 5 ++
 
 -- | Take the first element of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
---   see  <#patterns Views and Patterns> section.
+--   see  <#ViewsAndPatterns Views and Patterns> section.
 head :: ListLikeF f => Sized f (S n) a -> a
 head = givenListLikeF LL.head . runSized
 {-# INLINE head #-}
 
 -- | Take the last element of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
---   see  <#patterns Views and Patterns> section.
+--   see  <#ViewsAndPatterns Views and Patterns> section.
 last ::  ListLikeF f => Sized f (S n) a -> a
 last = givenListLikeF LL.last . runSized
 {-# INLINE last #-}
 
 -- | Take the tail of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
---   see  <#patterns Views and Patterns> section.
+--   see  <#ViewsAndPatterns Views and Patterns> section.
 tail :: ListLikeF f => Sized f (S n) a -> Sized f n a
 tail = givenListLikeF (Sized . LL.tail) . runSized
 {-# INLINE tail #-}
 
 -- | Take the initial segment of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
---   see  <#patterns Views and Patterns> section.
+--   see  <#ViewsAndPatterns Views and Patterns> section.
 init :: ListLikeF f => Sized f (S n) a -> Sized f n a
 init = Sized . givenListLikeF LL.init . runSized
 {-# INLINE init #-}
@@ -622,16 +631,47 @@ insert a = givenListLikeF' $ Sized . LL.insert a
 insertBy :: (ListLikeF f) => (a -> a -> Ordering) -> a -> Sized f n a -> Sized f (S n) a
 insertBy cmp a = givenListLikeF' $ Sized . LL.insertBy cmp a
 
+{-$ViewsAndPatterns #ViewsAndPatterns#
+With GHC's @ViewPatterns@ and @PatternSynonym@ extensions,
+we can pattern-match on arbitrary @Sized f n a@ if @f@ is list-like functor.
+Curretnly, there are two direction view and patterns: Cons and Snoc.
+Assuming underlying sequence type @f@ has O(1) implementation for 'LL.null', 'LL.head'
+(resp. 'LL.last') and 'LL.tail' (resp. 'LL.init'), We can view and pattern-match on
+cons (resp. snoc) of @Sized f n a@ in O(1).
+-}
 
--- $views #patterns#
--- These patterns and views are especially useful!
+{-$views #views#
+With @ViewPatterns@ extension, we can pattern-match on 'Sized' value as follows:
 
+@
+slen :: ('SingI' n, 'ListLikeF' f) => 'Sized' f n a -> 'SNat' n
+slen ('viewCons' -> 'NilCV')    = 'SZ'
+slen ('viewCons' -> _ '::-' as) = 'SS' (slen as)
+slen _                          = error "impossible"
+@
+
+The constraint @('SingI' n, 'ListLikeF' f)@ is needed for view function.
+In the above, we have extra wildcard pattern (@_@) at the last.
+Code compiles if we removed it, but current GHC warns for incomplete pattern,
+although we know first two patterns exhausts all the case.
+
+Equivalently, we can use snoc-style pattern-matching:
+
+@
+slen :: ('SingI' n, 'ListLikeF' f) => 'Sized' f n a -> 'SNat' n
+slen ('viewSnoc' -> 'NilSV')     = 'SZ'
+slen ('viewSnoc' -> as ':-::' _) = 'SS' (slen as)
+@
+-}
+
+-- | View of the left end of sequence (cons-side).
 data ConsView f n a where
   NilCV :: ConsView f Z a
-  (::-) :: a -> Sized f n a -> ConsView f (S n) a
+  (::-) :: SingI n => a -> Sized f n a -> ConsView f (S n) a
 
 infixr 5 ::-
 
+-- | Case analysis for the cons-side of sequence.
 viewCons :: forall f a n. (SingI n, ListLikeF f)
          => Sized f n a
          -> ConsView f n a
@@ -639,22 +679,51 @@ viewCons sz = case sing :: SNat n of
   SZ    -> NilCV
   SS n' -> withSingI n' $ head sz ::- tail sz
 
-infixr 5 :<
-pattern a :< b <- (viewCons -> a ::- b)
-pattern NilL   <- (viewCons -> NilCV)
-
+-- | View of the left end of sequence (snoc-side).
+infixl 5 :-::
 data SnocView f n a where
   NilSV :: SnocView f Z a
-  (:-:) :: SingI n => Sized f n a -> a -> SnocView f (S n) a
+  (:-::) :: SingI n => Sized f n a -> a -> SnocView f (S n) a
 
-
+-- | Case analysis for the snoc-side of sequence.
 viewSnoc :: forall f n a. (SingI n, ListLikeF f)
          => Sized f n a
          -> SnocView f n a
 viewSnoc sz = case sing :: SNat n of
   SZ   -> NilSV
-  SS n -> withSingI n $ init sz :-: last sz
+  SS n -> withSingI n $ init sz :-:: last sz
+
+{-$patterns #patterns#
+So we can pattern match on both end of sequence via views, but
+it is rather clumsy to nest it. For example:
+
+@
+nextToHead :: ('ListLikeF' f, 'SingI' n) => 'Sized' f ('S' ('S' n)) a -> a
+nextToHead ('viewCons' -> _ '::-' ('viewCons' -> a '::-' _)) = a
+@
+
+In such a case, with @PatternSynonyms@ extension we can write as follows:
+
+@
+nextToHead :: ('ListLikeF' f, 'SingI' n) => 'Sized' f ('S' ('S' n)) a -> a
+nextToHead (_ ':<' a ':<' _) = a
+@
+
+So, we can use @':<'@ and @'NilL'@ (resp. @':>'@ and @'NilR'@) to 
+pattern-match directly on cons-side (resp. snoc-side) as we usually do for lists.
+@':<'@, @'NilL'@, @':>'@ and @'NilR'@ are neither functions nor data constructors,
+but pattern synonyms so we cannot use them in expression contexts.
+For more detail on pattern synonyms, see
+<http://www.haskell.org/ghc/docs/latest/html/users_guide/syntax-extns.html#pattern-synonyms GHC Users Guide>
+and
+<https://ghc.haskell.org/trac/ghc/wiki/PatternSynonyms HaskellWiki>.
+-}
+
+infixr 5 :<
+-- | Pattern synonym for cons-side uncons.
+pattern a :< b <- (viewCons -> a ::- b)
+pattern NilL   <- (viewCons -> NilCV)
 
 infixl 5 :>
-pattern a :> b <- (viewSnoc -> a :-: b)
+pattern a :> b <- (viewSnoc -> a :-:: b)
 pattern NilR   <- (viewSnoc -> NilSV)
