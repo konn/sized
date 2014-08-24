@@ -6,202 +6,295 @@
 {-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables                #-}
 {-# LANGUAGE StandaloneDeriving, TypeFamilies, TypeOperators, ViewPatterns  #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
+-- | This module provides the functionality to make length-parametrized types
+--   from existing 'ListLike' and 'Functor' sequential types.
+-- 
+--   Most of the complexity of operations for @Sized f n a@ are the same as
+--   original operations for @f@. For example, '!!' is O(1) for
+--   @Sized Vector n a@ but O(i) for @Sized [] n a@.
+--
+--  This module also provides powerful view types and pattern synonyms to
+--  inspect the sized sequence. See <#patterns Views and Patterns> for more detail.
 module Data.Sized
-       (Sized(), empty, toList, toContainer, replicate, replicate',
-        singleton, uncons,
-        unsafeFromList, unsafeFromList', fromList, fromList',
-        fromListWithDefault, fromListWithDefault',
-        unsafeToSized, unsafeToSized',
-        toSized, toSized', toSizedWithDefault,
-        toSizedWithDefault',
-        append, head, last, tail, init, null,
-        length, sLength, map, reverse, intersperse,
-        take, takeAtMost, drop, splitAt, splitAtMost, elem, notElem,
-        find, (!!), (%!!), index, sIndex, elemIndex, sElemIndex,
-        findIndex, sFindIndex, findIndices, sFindIndices,
-        elemIndices, sElemIndices, zip, zipSame, zipWith, zipWithSame, unzip,
-        ConsView (..), viewCons, SnocView(..), viewSnoc,
-        pattern (:<), pattern NilL , pattern (:>), pattern NilR,
-        SomeSized(..), toSomeSized)
-       where
-import           Data.Constraint
-import           Data.Constraint.Forall
-import           Data.Foldable          (Foldable)
-import           Data.ListLike          (FoldableLL, ListLike)
-import qualified Data.ListLike          as LL
-import qualified Data.Sequence          as Seq
-import           Data.Traversable       (Traversable)
+       ( -- * Main Data-types
+         Sized(), ListLikeF, SomeSized(..),
+         -- * Accessors
+         -- ** Length information
+         length, sLength, null,
+         -- ** Indexing
+         (!!), (%!!), index, sIndex, head, last, uncons, unsnoc,
+         -- ** Slicing
+         tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
+         -- * Construction
+         -- ** Initialisation
+         empty, singleton, toSomeSized, replicate, replicate',
+         -- ** Concatenation
+         cons, snoc, (<|), (|>), append, (++), concat,
+         -- ** Others
+         zip, zipSame, zipWith, zipWithSame, unzip,
+         -- * Transformation
+         map, reverse, intersperse, nub, sort, sortBy, insert, insertBy,
+         -- * Conversion
+         -- ** List
+         toList, fromList, fromList', unsafeFromList, unsafeFromList',
+         fromListWithDefault, fromListWithDefault',
+         -- ** Base container
+         unsized,
+         toSized, toSized', unsafeToSized, unsafeToSized',
+         toSizedWithDefault, toSizedWithDefault',
+         -- * Querying
+         -- ** Partitioning
+         Partitioned(..),
+         takeWhile, dropWhile, span, break, partition,
+         -- ** Searching
+         elem, notElem, find, findIndex, sFindIndex, findIndices, sFindIndices,
+         elemIndex, sElemIndex, elemIndices, sElemIndices,
+         -- * Views and Patterns
+         -- $views
+         pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+         ConsView (..), viewCons, SnocView(..), viewSnoc
+       ) where
+
+import Data.Sized.Internal
+
+import           Data.ListLike         (FoldableLL)
+import qualified Data.ListLike         as LL
+import           Data.Proxy            (Proxy (..))
+import qualified Data.Sequence         as Seq
+import           Data.Type.Monomorphic
 import           Data.Type.Natural
-import           Data.Type.Ordinal      (Ordinal, ordToInt)
-import           Data.Typeable          (Typeable)
-import qualified Data.Vector            as V
-import           Prelude                hiding (drop, elem, head, init, last,
-                                         length, map, notElem, null, replicate,
-                                         reverse, splitAt, tail, take, unzip,
-                                         zip, zipWith, (!!))
-import qualified Prelude                as P
-import Data.Type.Monomorphic
+import           Data.Type.Ordinal     (Ordinal, ordToInt)
+import           Data.Typeable         (Typeable)
+import qualified Data.Vector           as V
+import           Prelude               (Bool (..), Enum (..), Eq (..),
+                                        Functor (..), Int, Maybe (..), Num (..),
+                                        Ord (..), Ordering, Show (..), flip,
+                                        undefined, ($), (.))
+import qualified Prelude               as P
+import           Unsafe.Coerce         (unsafeCoerce)
 
-newtype Sized f n a =
-  Sized { runSized :: f a
-        } deriving (Eq, Ord, Typeable,
-                    Functor, Foldable, Traversable)
-
-instance Show (f a) => Show (Sized f n a) where
-  showsPrec d (Sized x) = showsPrec d x
-
+-- | 'Sized' vector with the length is existentially quantified.
+--   This type is used mostly when the return type's length cannot
+--   be statically determined beforehand.
+--
+-- @SomeSized sn xs :: SomeSized f a@ stands for the 'Sized' sequence
+-- @xs@ of element type @a@ and length @sn@.
 data SomeSized f a where
-  SomeSized :: (ListLike (f a) a, SingI n) => Sized f (n :: Nat) a -> SomeSized f a
+  SomeSized :: (ListLikeF f, SingI n)
+            => SNat n
+            -> Sized f (n :: Nat) a
+            -> SomeSized f a
+
+-- | The type @Partitioned f n a@ represents partitioned sequence of length @n@.
+--   Value @Partitioned lenL ls lenR rs@ stands for:
+-- 
+--   * Entire sequence is divided into @ls@ and @rs@, and their length
+--     are @lenL@ and @lenR@ resp.
+-- 
+--   * @lenL + lenR = n@
+data Partitioned f n a where
+  Partitioned :: (ListLikeF f, SingI n, SingI m)
+              => SNat n
+              -> Sized f (n :: Nat) a
+              -> SNat m
+              -> Sized f (m :: Nat) a
+              -> Partitioned f (n :+ m) a
 
 deriving instance Typeable SomeSized
 
 deriving instance Show (f a) => Show (SomeSized f a)
 instance Eq (f a) => Eq (SomeSized f a) where
-  (SomeSized (Sized xs)) == (SomeSized (Sized ys)) = xs == ys
+  (SomeSized _ (Sized xs)) == (SomeSized _ (Sized ys)) = xs == ys
 
-toSomeSized :: ListLike (f a) a => f a -> SomeSized f a
-toSomeSized xs =
+-- | Consruct the 'Sized' sequence from base type, but
+--   the length parameter is dynamically determined and
+--   existentially quantified; see also 'SomeSized'.
+toSomeSized :: forall f a. ListLikeF f => f a -> SomeSized f a
+toSomeSized = givenListLikeF $ \xs ->
   case promote $ LL.length xs of
-    Monomorphic sn -> withSingI sn $ SomeSized $ unsafeToSized sn xs
+    Monomorphic sn -> withSingI sn $ SomeSized sn $ unsafeToSized sn xs
 
-toContainer :: Sized f n a -> f a
-toContainer = runSized
-{-# INLINE toContainer #-}
+-- | Forget the length and obtain the wrapped base container.
+unsized :: Sized f n a -> f a
+unsized = runSized
+{-# INLINE unsized #-}
 
-empty :: ListLike (f a) a => Sized f Z a
-empty = Sized LL.empty
+-- | Empty sequence.
+empty :: forall f a. ListLikeF f => Sized f Z a
+empty = withListLikeF (Proxy :: Proxy (f a)) $ Sized LL.empty
 {-# INLINE empty #-}
 
-wrap0 :: (f a -> b) -> Sized f n a -> b
-wrap0 f (Sized xs) = f xs
-{-# INLINE wrap0 #-}
-
-instance Class (FoldableLL f a) (ListLike f a) where
-  cls = Sub Dict
-
-instance ListLike f a :=> FoldableLL f a where
-  ins = Sub Dict
-
-instance FoldableLL (f a) a => FoldableLL (Sized f n a) a where
+instance ListLikeF f => FoldableLL (Sized f n a) a where
   {-# SPECIALISE instance LL.FoldableLL (Sized [] n a) a #-}
   {-# SPECIALISE instance LL.FoldableLL (Sized V.Vector n a) a #-}
   {-# SPECIALISE instance LL.FoldableLL (Sized Seq.Seq n a) a #-}
-  foldl f a (Sized xs) = LL.foldl f a xs
+  foldl  f a = givenListLikeF' $ LL.foldl f a
   {-# INLINE foldl #-}
-  foldl' f a (Sized xs) = LL.foldl' f a xs
+  foldl' f a = givenListLikeF' $ LL.foldl' f a
   {-# INLINE foldl' #-}
-  foldl1 f (Sized xs) = LL.foldl1 f xs
+  foldl1 f   = givenListLikeF' $ LL.foldl1 f
   {-# INLINE foldl1 #-}
-  foldr f a (Sized xs) = LL.foldr f a xs
+  foldr  f a = givenListLikeF' $ LL.foldr f a
   {-# INLINE foldr #-}
-  foldr' f a (Sized xs) = LL.foldr' f a xs
+  foldr' f a = givenListLikeF' $ LL.foldr' f a
   {-# INLINE foldr' #-}
-  foldr1 f (Sized xs) = LL.foldr1 f xs
+  foldr1 f   = givenListLikeF' $ LL.foldr1 f
   {-# INLINE foldr1 #-}
 
-replicate :: ListLike (f a) a => SNat n -> a -> Sized f n a
-replicate sn a = Sized $ LL.replicate (sNatToInt sn) a
+-- | Append an element to the head of sequence.
+cons :: (ListLikeF f) => a -> Sized f n a -> Sized f (S n) a
+cons a = givenListLikeF' $ Sized . LL.cons a
+{-# INLINE cons #-}
+
+-- | Infix version of 'cons'.
+(<|) :: (ListLikeF f) => a -> Sized f n a -> Sized f (S n) a
+(<|) = cons
+{-# INLINE (<|) #-}
+infixr 5 <|
+
+-- | Infix version of 'snoc'.
+(|>) :: (ListLikeF f) => Sized f n a -> a -> Sized f (S n) a
+(|>) = snoc
+{-# INLINE (|>) #-}
+infixl 5 |>
+
+-- | Concatenates multiple sequences into one.
+concat :: forall f f' m n a. (ListLikeF f, ListLikeF f')
+       => Sized f' m (Sized f n a) -> Sized f (m :* n) a
+concat =
+  givenListLikeF' $ withListLikeF (Proxy :: Proxy (f' (f a))) $
+  withListLikeF (Proxy :: Proxy (f a)) $
+  Sized . LL.concat . fmap runSized
+
+-- | Append an element to the tail of sequence.
+snoc :: (ListLikeF f) => Sized f n a -> a -> Sized f (S n) a
+snoc (Sized xs) a = withListLikeF' xs $ Sized $ LL.snoc xs a
+{-# INLINE snoc #-}
+
+-- | Replicates the same value.
+replicate :: forall f n a. ListLikeF f => SNat n -> a -> Sized f n a
+replicate sn a = withListLikeF (Proxy :: Proxy (f a)) $
+                 Sized $ LL.replicate (sNatToInt sn) a
 {-# INLINE replicate #-}
 
-replicate' :: (SingI (n :: Nat), ListLike (f a) a) => a -> Sized f n a
+-- | 'replicate' with the length inferred.
+replicate' :: (SingI (n :: Nat), ListLikeF f) => a -> Sized f n a
 replicate' = withSing replicate
 {-# INLINE replicate' #-}
 
-singleton :: ListLike (f a) a => a -> Sized f One a
-singleton = Sized . LL.singleton
+-- | Sequence with one element.
+singleton :: forall f a. ListLikeF f => a -> Sized f One a
+singleton = withListLikeF (Proxy :: Proxy (f a)) $ Sized . LL.singleton
 {-# INLINE singleton #-}
 
-uncons :: ListLike (f a) a => Sized f (S n) a -> (a, Sized f n a)
-uncons (Sized xs) = (LL.head xs, Sized $ LL.tail xs)
+-- | Take the 'head' and 'tail' of non-empty sequence.
+--   If you want to make case-analysis for general sequence,
+--   see  <#patterns Views and Patterns> section.
+uncons :: ListLikeF f => Sized f (S n) a -> (a, Sized f n a)
+uncons = givenListLikeF (\xs -> (LL.head xs, Sized $ LL.tail xs)) . runSized
 {-# INLINE uncons #-}
 
--- | Unsafe version of 'fromList'. If a given list is shorter than
---   the length @n@, then something unusual happens.
-unsafeFromList :: ListLike (f a) a => SNat n -> [a] -> Sized f n a
-unsafeFromList sn xs = Sized $ LL.fromList $ P.take (sNatToInt sn) $ xs
+unsnoc :: ListLikeF f => Sized f (S n) a -> (Sized f n a, a)
+unsnoc = givenListLikeF (\xs -> (Sized $ LL.init xs, LL.last xs)) . runSized
+{-# INLINE unsnoc #-}
+
+-- | Unsafe version of 'fromList'. If the length of the given list does not 
+--   equal to @n@, then something unusual happens.
+unsafeFromList :: forall f n a. ListLikeF f => SNat n -> [a] -> Sized f n a
+unsafeFromList _ xs =
+  withListLikeF (Proxy :: Proxy (f a)) $
+  Sized $ LL.fromList xs
 {-# INLINE [2] unsafeFromList #-}
 
 {-# RULES
-"unsafeFromList/Zero" forall (sz :: SNat Z) xs.
-  unsafeFromList sz xs = unsafeToSized sz xs
 "unsafeFromList/List" forall sn (xs :: [a]).
   unsafeFromList sn xs = Sized (P.take (sNatToInt sn) xs)
  #-}
 
-fromListWithDefault :: ListLike (f a) a => SNat n -> a -> [a] -> Sized f n a
+-- | Construct a @Sized f n a@ by padding default value if the given list is short.
+fromListWithDefault :: forall f n a. ListLikeF f => SNat n -> a -> [a] -> Sized f n a
 fromListWithDefault sn def xs =
-  Sized $ LL.fromList xs `LL.append` LL.replicate (sNatToInt sn - P.length xs) def
+  let len = sNatToInt sn
+  in withListLikeF (Proxy :: Proxy (f a)) $
+     Sized $ LL.fromList (P.take len xs) `LL.append` LL.replicate (len - P.length xs) def
 {-# INLINABLE fromListWithDefault #-}
 
 
-fromListWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> [a] -> Sized f n a
+-- | 'fromListWithDefault' with the result length inferred.
+fromListWithDefault' :: (SingI (n :: Nat), ListLikeF f) => a -> [a] -> Sized f n a
 fromListWithDefault' = withSing fromListWithDefault
 {-# INLINE fromListWithDefault' #-}
 
-
-fromList :: ListLike (f a) a => SNat n -> [a] -> Maybe (Sized f n a)
+-- | If the given list is shorter than @n@, then returns @Nothing@
+--   Otherwise returns @Sized f n a@ consisting of initial @n@ element
+--   of given list.
+fromList :: forall f n a. ListLikeF f => SNat n -> [a] -> Maybe (Sized f n a)
+fromList SZ _ = withListLikeF (Proxy :: Proxy (f a)) $
+                Just $ Sized (LL.empty :: f a)
 fromList sn xs =
-  if P.length xs < sNatToInt sn
-  then Nothing
-  else Just $ unsafeFromList sn xs
+  let len = sNatToInt sn
+  in if P.length xs < len
+     then Nothing
+     else Just $ unsafeFromList sn $ P.take len xs
 {-# INLINABLE [2] fromList #-}
 
 {-# RULES
-"fromList/Zero" forall (sn :: SNat Z) xs.
-  fromList sn xs = Just $ Sized $ LL.empty
 "fromList/List" forall sn (xs :: [a]).
   fromList sn xs = toSized sn xs
   #-}
 
-fromList' :: (ListLike (f a) a, SingI (n :: Nat)) => [a] -> Maybe (Sized f n a)
+-- | 'fromList' with the result length inferred.
+fromList' :: (ListLikeF f, SingI (n :: Nat)) => [a] -> Maybe (Sized f n a)
 fromList' = withSing fromList
 {-# INLINE fromList' #-}
 
-unsafeFromList' :: (SingI (n :: Nat), ListLike (f a) a) => [a] -> Sized f n a
+-- | 'unsafeFromList' with the result length inferred.
+unsafeFromList' :: (SingI (n :: Nat), ListLikeF f) => [a] -> Sized f n a
 unsafeFromList' = withSing unsafeFromList
 {-# INLINE unsafeFromList' #-}
 
-unsafeToSized :: ListLike (f a) a => SNat n -> f a -> Sized f n a
-unsafeToSized sn xs = Sized $ LL.take (sNatToInt sn) xs
+-- | Unsafe version of 'toSized'. If the length of the given list does not 
+--   equal to @n@, then something unusual happens.
+unsafeToSized :: SNat n -> f a -> Sized f n a
+unsafeToSized _ = Sized
 {-# INLINE [2] unsafeToSized #-}
 
-{-# RULES
-"unsafeToSized/Zero" forall (sn :: SNat Z) xs.
-  unsafeToSized sn xs = Sized $ LL.empty
-  #-}
-
-toSized :: ListLike (f a) a => SNat n -> f a -> Maybe (Sized f n a)
-toSized sn xs =
-  if LL.length xs < sNatToInt sn
-  then Nothing
-  else Just $ unsafeToSized sn xs
+-- | If the length of the input is shorter than @n@, then returns @Nothing@.
+--   Otherwise returns @Sized f n a@ consisting of initial @n@ element
+--   of the input.
+toSized :: ListLikeF f => SNat n -> f a -> Maybe (Sized f n a)
+toSized sn = givenListLikeF $ \xs ->
+  let len = sNatToInt sn
+  in if LL.length xs < len
+     then Nothing
+     else Just $ unsafeToSized sn $ LL.take len xs
 {-# INLINABLE [2] toSized #-}
 
-{-# RULES
-"toSized/Zero" forall (sn :: SNat Z) xs.
-  toSized sn xs = Just $ Sized LL.empty
-  #-}
-
-toSizedWithDefault :: ListLike (f a) a => SNat n -> a -> f a -> Sized f n a
-toSizedWithDefault sn def xs =
-  Sized $ xs `LL.append` LL.replicate (sNatToInt sn - LL.length xs) def
+-- | Construct a @Sized f n a@ by padding default value if the given list is short.
+toSizedWithDefault :: ListLikeF f => SNat n -> a -> f a -> Sized f n a
+toSizedWithDefault sn def = givenListLikeF $ \xs ->
+  let len = sNatToInt sn
+  in Sized $ LL.take len xs `LL.append` LL.replicate (len - LL.length xs) def
 {-# INLINABLE toSizedWithDefault #-}
 
-toSizedWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> f a -> Sized f n a
+-- | 'toSizedWithDefault' with the result length inferred.
+toSizedWithDefault' :: (SingI (n :: Nat), ListLikeF f) => a -> f a -> Sized f n a
 toSizedWithDefault' = withSing toSizedWithDefault
 {-# INLINE toSizedWithDefault' #-}
 
-
-toSized' :: (ListLike (f a) a, SingI (n :: Nat)) => f a -> Maybe (Sized f n a)
+-- | 'toSized' with the result length inferred.
+toSized' :: (ListLikeF f, SingI (n :: Nat)) => f a -> Maybe (Sized f n a)
 toSized' = withSing toSized
 {-# INLINE toSized' #-}
 
-unsafeToSized' :: (SingI (n :: Nat), ListLike (f a) a) => f a -> Sized f n a
+-- | 'unsafeToSized' with the result length inferred.
+unsafeToSized' :: (SingI (n :: Nat), ListLikeF f) => f a -> Sized f n a
 unsafeToSized' = withSing unsafeToSized
 {-# INLINE unsafeToSized' #-}
 
-toList :: ListLike (f a) a => Sized f n a -> [a]
-toList = LL.toList . runSized
+-- | Convert to list.
+toList :: ListLikeF f => Sized f n a -> [a]
+toList = givenListLikeF LL.toList . runSized
 {-# INLINE [2] toList #-}
 
 {-# RULES
@@ -209,28 +302,47 @@ toList = LL.toList . runSized
   toList xs = runSized xs
   #-}
 
-append :: ListLike (f a) a => Sized f n a -> Sized f m a -> Sized f (n :+ m) a
-append (Sized xs) (Sized ys) = Sized $ LL.append xs ys
+-- | Append two lists.
+append :: ListLikeF f => Sized f n a -> Sized f m a -> Sized f (n :+ m) a
+append (Sized xs) (Sized ys) = withListLikeF' xs $ Sized $ LL.append xs ys
 {-# INLINE append #-}
 
-head :: ListLike (f a) a => Sized f (S n) a -> a
-head = LL.head . runSized
+-- | Infix version of 'append'.
+(++) :: (ListLikeF f) => Sized f n a -> Sized f m a -> Sized f (n :+ m) a
+(++) = append
+infixr 5 ++
+
+-- | Take the first element of non-empty sequence.
+--   If you want to make case-analysis for general sequence,
+--   see  <#patterns Views and Patterns> section.
+head :: ListLikeF f => Sized f (S n) a -> a
+head = givenListLikeF LL.head . runSized
 {-# INLINE head #-}
 
-last ::  ListLike (f a) a => Sized f (S n) a -> a
-last = LL.last . runSized
+-- | Take the last element of non-empty sequence.
+--   If you want to make case-analysis for general sequence,
+--   see  <#patterns Views and Patterns> section.
+last ::  ListLikeF f => Sized f (S n) a -> a
+last = givenListLikeF LL.last . runSized
 {-# INLINE last #-}
 
-tail :: ListLike (f a) a => Sized f (S n) a -> Sized f n a
-tail = Sized . LL.tail . runSized
+-- | Take the tail of non-empty sequence.
+--   If you want to make case-analysis for general sequence,
+--   see  <#patterns Views and Patterns> section.
+tail :: ListLikeF f => Sized f (S n) a -> Sized f n a
+tail = givenListLikeF (Sized . LL.tail) . runSized
 {-# INLINE tail #-}
 
-init :: ListLike (f a) a => Sized f (S n) a -> Sized f n a
-init = Sized . LL.init . runSized
+-- | Take the initial segment of non-empty sequence.
+--   If you want to make case-analysis for general sequence,
+--   see  <#patterns Views and Patterns> section.
+init :: ListLikeF f => Sized f (S n) a -> Sized f n a
+init = Sized . givenListLikeF LL.init . runSized
 {-# INLINE init #-}
 
-null :: ListLike (f a) a => Sized f n a -> Bool
-null = LL.null . runSized
+-- | Test if the sequence is empty or not.
+null :: ListLikeF f => Sized f n a -> Bool
+null = givenListLikeF' LL.null
 {-# INLINE [2] null #-}
 {-# RULES
 "null/Zero" forall (xs :: Sized f Z a).
@@ -239,143 +351,280 @@ null = LL.null . runSized
   null xs = False
   #-}
 
-length :: ListLike (f a) a => Sized f n a -> Int
-length = LL.length . runSized
+-- | Returns the length of wrapped containers.
+--   If you use @unsafeFromList@ or similar unsafe functions,
+--   this function may return different value from type-parameterized length.
+length :: ListLikeF f => Sized f n a -> Int
+length = givenListLikeF LL.length . runSized
 {-# INLINE length #-}
 
+-- | @SNat@ version of 'length'.
 sLength :: SingI n => Sized f n a -> SNat n
 sLength _ = sing
 {-# INLINE sLength #-}
 
+-- | Map function.
 map :: Functor f => (a -> b) -> Sized f n a -> Sized f n b
 map f = Sized . fmap f . runSized
 {-# INLINE map #-}
 
-reverse :: ListLike (f a) a => Sized f n a -> Sized f n a
-reverse = Sized . LL.reverse . runSized
+-- | Reverse function.
+reverse :: ListLikeF f => Sized f n a -> Sized f n a
+reverse = Sized . givenListLikeF LL.reverse . runSized
 {-# INLINE reverse #-}
 
-intersperse :: ListLike (f a) a => a -> Sized f n a -> Sized f ((Two :* n) :-: One) a
-intersperse a = Sized . LL.intersperse a . runSized
+-- | Intersperces.
+intersperse :: ListLikeF f => a -> Sized f n a -> Sized f ((Two :* n) :-: One) a
+intersperse a = Sized . givenListLikeF' (LL.intersperse a)
 {-# INLINE intersperse #-}
 
-take :: (ListLike (f a) a, (n :<<= m) ~ True)
+-- | @take k xs@ takes first @k@ element of @xs@ where
+-- the length of @xs@ should be larger than @k@.
+-- It is really sad, that this function
+-- takes at least O(k) regardless of base container.
+take :: (ListLikeF f, (n :<<= m) ~ True)
      => SNat n -> Sized f m a -> Sized f n a
-take sn (Sized xs) = Sized $ LL.take (sNatToInt sn) xs
+take sn = Sized . givenListLikeF' (LL.take (sNatToInt sn))
 {-# INLINE take #-}
 
-takeAtMost :: (ListLike (f a) a)
+-- | @take k xs@ takes first @k@ element of @xs@ at most.
+-- It is really sad, that this function
+-- takes at least O(k) regardless of base container.
+takeAtMost :: (ListLikeF f)
            => SNat n -> Sized f m a -> Sized f (Min n m) a
-takeAtMost sn (Sized xs) = Sized $ LL.take (sNatToInt sn) xs
+takeAtMost sn = givenListLikeF' $ Sized . LL.take (sNatToInt sn)
 {-# INLINE takeAtMost #-}
 
-drop :: (ListLike (f a) a, (n :<<= m) ~ True)
+-- | @drop k xs@ drops first @k@ element of @xs@ and returns
+-- the rest of sequence, where the length of @xs@ should be larger than @k@.
+-- It is really sad, that this function
+-- takes at least O(k) regardless of base container.
+drop :: (ListLikeF f, (n :<<= m) ~ True)
      => SNat n -> Sized f m a -> Sized f (m :-: n) a
-drop sn = Sized . LL.drop (sNatToInt sn) . runSized
+drop sn = givenListLikeF' $ Sized . LL.drop (sNatToInt sn)
 {-# INLINE drop #-}
 
-splitAt :: (LL.ListLike (f a) a, (n :<<= m) ~ True)
+-- | @splitAt k xs@ split @xs@ at @k@, where
+-- the length of @xs@ should be less than or equal to @k@.
+-- It is really sad, that this function
+-- takes at least O(k) regardless of base container.
+splitAt :: (ListLikeF f , (n :<<= m) ~ True)
         => SNat n -> Sized f m a -> (Sized f n a, Sized f (m :-: n) a)
-splitAt n xs =
-  let (as, bs) = LL.splitAt (sNatToInt n) (runSized xs)
+splitAt n = givenListLikeF' $ \xs ->
+  let (as, bs) = LL.splitAt (sNatToInt n) xs
   in (Sized as, Sized bs)
 {-# INLINE splitAt #-}
 
-splitAtMost :: LL.ListLike (f a) a
+-- | @splitAtMost k xs@ split @xs@ at @k@.
+--   If @k@ exceeds the length of @xs@, then the second result value become empty.
+-- It is really sad, that this function
+-- takes at least O(k) regardless of base container.
+splitAtMost :: ListLikeF f
             => SNat n -> Sized f m a -> (Sized f (Min n m) a, Sized f (m :-: n) a)
-splitAtMost n xs =
-  let (as, bs) = LL.splitAt (sNatToInt n) (runSized xs)
+splitAtMost n = givenListLikeF' $ \xs ->
+  let (as, bs) = LL.splitAt (sNatToInt n) xs
   in (Sized as, Sized bs)
 {-# INLINE splitAtMost #-}
 
-elem :: (ListLike (f a) a, Eq a) => a -> Sized f n a -> Bool
-elem a = LL.elem a . runSized
+-- | Take the initial segment as long as elements satisfys the predicate.
+takeWhile :: ListLikeF f
+          => (a -> Bool) -> Sized f n a -> SomeSized f a
+takeWhile p = givenListLikeF' $ toSomeSized . LL.takeWhile p
+{-# INLINE takeWhile #-}
+
+-- | Drop the initial segment as long as elements satisfys the predicate.
+dropWhile :: ListLikeF f
+          => (a -> Bool) -> Sized f n a -> SomeSized f a
+dropWhile p = givenListLikeF' $ toSomeSized . LL.dropWhile p
+{-# INLINE dropWhile #-}
+
+-- | Invariant: @'ListLike' (f a) a@ instance must be implemented
+-- to satisfy the following property:
+-- @length (fst (span p xs)) + length (snd (span p xs)) == length xs@
+-- Otherwise, this function introduces severe contradiction.
+span :: ListLikeF f
+     => (a -> Bool) -> Sized f n a -> Partitioned f n a
+span p = givenListLikeF' $ \xs ->
+         let (as, bs) = LL.span p xs
+         in case (toSomeSized as, toSomeSized bs) of
+           (SomeSized lenL ls, SomeSized lenR rs) ->
+             unsafeCoerce $ Partitioned lenL ls lenR rs
+{-# INLINE span #-}
+
+-- | Invariant: @'ListLike' (f a) a@ instance must be implemented
+-- to satisfy the following property:
+-- @length (fst (break p xs)) + length (snd (break p xs)) == length xs@
+-- Otherwise, this function introduces severe contradiction.
+break :: ListLikeF f
+     => (a -> Bool) -> Sized f n a -> Partitioned f n a
+break p = givenListLikeF' $ \xs ->
+         let (as, bs) = LL.break p xs
+         in case (toSomeSized as, toSomeSized bs) of
+           (SomeSized lenL ls, SomeSized lenR rs) ->
+             unsafeCoerce $ Partitioned lenL ls lenR rs
+{-# INLINE break #-}
+
+-- | Invariant: @'ListLike' (f a) a@ instance must be implemented
+-- to satisfy the following property:
+-- @length (fst (partition p xs)) + length (snd (partition p xs)) == length xs@
+-- Otherwise, this function introduces severe contradiction.
+partition :: ListLikeF f
+     => (a -> Bool) -> Sized f n a -> Partitioned f n a
+partition p = givenListLikeF' $ \xs ->
+         let (as, bs) = LL.partition p xs
+         in case (toSomeSized as, toSomeSized bs) of
+           (SomeSized lenL ls, SomeSized lenR rs) ->
+             unsafeCoerce $ Partitioned lenL ls lenR rs
+{-# INLINE partition #-}
+
+-- | Remove all duplicates.
+nub :: (ListLikeF f, Eq a) => Sized f n a -> SomeSized f a
+nub = givenListLikeF' $ toSomeSized . LL.nub
+
+-- | Membership test; see also 'notElem'.
+elem :: (ListLikeF f, Eq a) => a -> Sized f n a -> Bool
+elem a = givenListLikeF' $ LL.elem a
 {-# INLINE elem #-}
 
-notElem :: (ListLike (f a) a, Eq a) => a -> Sized f n a -> Bool
-notElem a = LL.notElem a . runSized
+-- | Negation of 'elem'.
+notElem :: (ListLikeF f, Eq a) => a -> Sized f n a -> Bool
+notElem a = givenListLikeF' $ LL.notElem a
 {-# INLINE notElem #-}
 
-find :: ListLike (f a) a => (a -> Bool) -> Sized f n a -> Maybe a
-find p = wrap0 (LL.find p)
+-- | Find the element satisfying the predicate.
+find :: ListLikeF f => (a -> Bool) -> Sized f n a -> Maybe a
+find p = givenListLikeF' $ LL.find p
 {-# INLINE find #-}
 
-(!!) :: (ListLike (f a) a, (n :<<= m) ~ True) => Sized f (S m) a -> SNat n -> a
-Sized xs !! n = LL.index xs (sNatToInt n)
+-- | (Unsafe) indexing with @Int@s.
+--   If you want to check boundary statically, use '%!!' or 'sIndex'.
+(!!) :: (ListLikeF f) => Sized f (S m) a -> Int -> a
+Sized xs !! n = withListLikeF' xs $ LL.index xs n
 {-# INLINE (!!) #-}
 
-(%!!) :: ListLike (f a) a => Sized f n a -> Ordinal n -> a
-Sized xs %!! n = LL.index xs (ordToInt n)
+-- | Safe indexing with 'Ordinal's.
+(%!!) :: ListLikeF f => Sized f n a -> Ordinal n -> a
+Sized xs %!! n = withListLikeF' xs $ LL.index xs (ordToInt n)
 {-# INLINE (%!!) #-}
 
-index :: (ListLike (f c) c, (n :<<= m) ~ 'True) => SNat n -> Sized f (S m) c -> c
+-- | Flipped version of '!!'.
+index :: (ListLikeF f) => Int -> Sized f (S m) c -> c
 index = flip (!!)
 {-# INLINE index #-}
 
-sIndex :: ListLike (f c) c => Ordinal n -> Sized f n c -> c
+-- | Flipped version of '%!!'.
+sIndex :: ListLikeF f => Ordinal n -> Sized f n c -> c
 sIndex = flip (%!!)
 {-# INLINE sIndex #-}
 
-elemIndex :: (Eq a, ListLike (f a) a) => a -> Sized f n a -> Maybe Int
+-- | Returns the index of the given element in the list, if exists.
+elemIndex :: (Eq a, ListLikeF f) => a -> Sized f n a -> Maybe Int
 elemIndex a = findIndex (== a)
 {-# INLINE elemIndex #-}
 
-sElemIndex :: (SingI n, ListLike (f a) a, Eq a)
+-- | Ordinal version of 'elemIndex'
+sElemIndex :: (SingI n, ListLikeF f, Eq a)
            => a -> Sized f n a -> Maybe (Ordinal n)
 sElemIndex a = sFindIndex (== a)
 {-# INLINE sElemIndex #-}
 
-sFindIndex :: (SingI n, ListLike (f a) a) => (a -> Bool) -> Sized f n a -> Maybe (Ordinal n)
+-- | 'Ordinal' version of 'findIndex'.
+sFindIndex :: (SingI n, ListLikeF f) => (a -> Bool) -> Sized f n a -> Maybe (Ordinal n)
 sFindIndex p = fmap toEnum . findIndex p
 {-# INLINE sFindIndex #-}
 
-findIndex :: ListLike (f a) a => (a -> Bool) -> Sized f n a -> Maybe Int
-findIndex p = LL.findIndex p . runSized
+-- | @'findIndex' p xs@ find the element satisfying @p@ and returns its index if exists.
+findIndex :: ListLikeF f => (a -> Bool) -> Sized f n a -> Maybe Int
+findIndex p = givenListLikeF' $ LL.findIndex p
 {-# INLINE findIndex #-}
 
-findIndices :: ListLike (f a) a => (a -> Bool) -> Sized f n a -> [Int]
-findIndices p = LL.findIndices p . runSized
+
+-- | @'findIndices' p xs@ find all elements satisfying @p@ and returns their indices.
+findIndices :: ListLikeF f => (a -> Bool) -> Sized f n a -> [Int]
+findIndices p = givenListLikeF' $ LL.findIndices p
 {-# INLINE findIndices #-}
 
-sFindIndices :: (SingI n, ListLike (f a) a) => (a -> Bool) -> Sized f n a -> [Ordinal n]
+-- | 'Ordinal' version of 'findIndices'.
+sFindIndices :: (SingI n, ListLikeF f) => (a -> Bool) -> Sized f n a -> [Ordinal n]
 sFindIndices p = fmap toEnum . findIndices p
 {-# INLINE sFindIndices #-}
 
-elemIndices :: (ListLike (f a) a, Eq a) => a -> Sized f n a -> [Int]
-elemIndices a = LL.elemIndices a . runSized
+-- | Returns all indices of the given element in the list.
+elemIndices :: (ListLikeF f, Eq a) => a -> Sized f n a -> [Int]
+elemIndices a = givenListLikeF' $ LL.elemIndices a
 {-# INLINE elemIndices #-}
 
-
-sElemIndices :: (SingI n, ListLike (f a) a, Eq a) => a -> Sized f n a -> [Ordinal n]
+-- | Ordinal version of 'elemIndices'
+sElemIndices :: (SingI n, ListLikeF f, Eq a) => a -> Sized f n a -> [Ordinal n]
 sElemIndices p = fmap toEnum . elemIndices p
 {-# INLINE sElemIndices #-}
 
-zip :: (LL.ListLike (f a) a, LL.ListLike (f b) b, LL.ListLike (f (a, b)) (a, b))
+-- | Zipping two sequences. Length is adjusted to shorter one.
+zip :: forall f a b n m. (ListLikeF f)
     => Sized f n a -> Sized f m b -> Sized f (Min n m) (a, b)
-zip (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
+zip (Sized xs) (Sized ys) =
+  withListLikeF' ys $ withListLikeF' xs $
+  withListLikeF (Proxy :: Proxy (f (a,b))) $ Sized $
+  LL.zip xs ys
 {-# INLINE zip #-}
 
-zipSame :: (ListLike (f (a, b)) (a, b), ListLike (f b) b, ListLike (f a) a)
+-- | 'zip' for the sequences of the same length.
+zipSame :: forall f n a b. (ListLikeF f)
         => Sized f n a -> Sized f n b -> Sized f n (a, b)
-zipSame (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
+zipSame (Sized xs) (Sized ys) =
+  withListLikeF' xs $ withListLikeF' ys $
+  withListLikeF (Proxy :: Proxy (f (a, b))) $
+  Sized $ LL.zip xs ys
 {-# INLINE zipSame #-}
 
-zipWith :: (LL.ListLike (f a) a, LL.ListLike (f b) b, LL.ListLike (f c) c)
+-- | Zipping two sequences with funtion. Length is adjusted to shorter one.
+zipWith :: forall f a b c m n. (ListLikeF f)
     => (a -> b -> c) -> Sized f n a -> Sized f m b -> Sized f (Min n m) c
-zipWith f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
+zipWith f (Sized xs) (Sized ys) =
+  withListLikeF' xs $ withListLikeF' ys $
+  withListLikeF (Proxy :: Proxy (f c)) $
+  Sized $ LL.zipWith f xs ys
 {-# INLINE zipWith #-}
 
-zipWithSame :: (LL.ListLike (f a) a, LL.ListLike (f b) b, LL.ListLike (f c) c)
-    => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
-zipWithSame f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
+-- | 'zipWith' for the sequences of the same length.
+zipWithSame :: forall f a b c n. ListLikeF f
+            => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
+zipWithSame f (Sized xs) (Sized ys) =
+  withListLikeF' xs $ withListLikeF' ys $
+  withListLikeF (Proxy :: Proxy (f c)) $
+  Sized $ LL.zipWith f xs ys
 {-# INLINE zipWithSame #-}
 
-unzip :: (ListLike (f b) b, ListLike (f a) a, ListLike (f (a, b)) (a, b))
+-- | Unzipping the sequence of tuples.
+unzip :: forall f n a b. (ListLikeF f)
       => Sized f n (a, b) -> (Sized f n a, Sized f n b)
-unzip (Sized xys) =
+unzip (Sized xys) = withListLikeF' xys $
+  withListLikeF (Proxy :: Proxy (f b)) $
+  withListLikeF (Proxy :: Proxy (f a)) $
   let (xs, ys) = LL.unzip xys
   in (Sized xs, Sized ys)
 {-# INLINE unzip #-}
+
+-- | Sorting sequence by ascending order.
+sort :: (ListLikeF f, Ord a)
+     => Sized f n a -> Sized f n a
+sort = givenListLikeF' $ Sized . LL.sort
+
+-- | Generalized version of 'sort'.
+sortBy :: (ListLikeF  f) => (a -> a -> Ordering) -> Sized f n a -> Sized f n a
+sortBy cmp = givenListLikeF' $ Sized . LL.sortBy cmp
+
+-- | Insert new element into the presorted sequence.
+insert :: (ListLikeF f, Ord a) => a -> Sized f n a -> Sized f (S n) a
+insert a = givenListLikeF' $ Sized . LL.insert a
+
+-- | Generalized version of 'insert'.
+insertBy :: (ListLikeF f) => (a -> a -> Ordering) -> a -> Sized f n a -> Sized f (S n) a
+insertBy cmp a = givenListLikeF' $ Sized . LL.insertBy cmp a
+
+
+-- $views #patterns#
+-- These patterns and views are especially useful!
 
 data ConsView f n a where
   NilCV :: ConsView f Z a
@@ -383,7 +632,7 @@ data ConsView f n a where
 
 infixr 5 ::-
 
-viewCons :: forall f a n. (SingI n, ListLike (f a) a)
+viewCons :: forall f a n. (SingI n, ListLikeF f)
          => Sized f n a
          -> ConsView f n a
 viewCons sz = case sing :: SNat n of
@@ -399,7 +648,7 @@ data SnocView f n a where
   (:-:) :: SingI n => Sized f n a -> a -> SnocView f (S n) a
 
 
-viewSnoc :: forall f n a. (SingI n, ListLike (f a) a)
+viewSnoc :: forall f n a. (SingI n, ListLikeF f)
          => Sized f n a
          -> SnocView f n a
 viewSnoc sz = case sing :: SNat n of
@@ -409,7 +658,3 @@ viewSnoc sz = case sing :: SNat n of
 infixl 5 :>
 pattern a :> b <- (viewSnoc -> a :-: b)
 pattern NilR   <- (viewSnoc -> NilSV)
-
-isNull :: (SingI (n :: Nat), ListLike (f a) a) => Sized f n a -> Bool
-isNull NilL = True
-isNull _    = False

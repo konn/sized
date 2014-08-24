@@ -20,7 +20,7 @@ source-repository head
 
 library
   exposed-modules:     Data.Sized
-  -- other-modules:       
+  other-modules:       Data.Sized.Internal
   -- other-extensions:    
   build-depends:       base >=4.7 && <4.8
                ,       type-natural
