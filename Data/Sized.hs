@@ -959,8 +959,8 @@ pattern (:<) :: forall (f :: * -> *) a (n :: Nat). (ListLikeF f, KnownNat n, Fun
 pattern a :< as <- (viewCons -> a ::- as) where
    a :< as = a <| as
 
-pattern NilL :: forall (f :: * -> *) a. (ListLikeF f, Functor f)
-             => Sized f 0 a
+pattern NilL :: forall (f :: * -> *) a (n :: Nat). (ListLikeF f, KnownNat n, Functor f)
+     => n ~ 0 => Sized f n a
 pattern NilL   <- (viewCons -> NilCV) where
   NilL = empty
 
@@ -972,6 +972,7 @@ pattern (:>) :: forall (f :: * -> *) (n :: Nat) a. (ListLikeF f, KnownNat n, Fun
 pattern a :> b <- (viewSnoc -> a :-:: b) where
   a :> b = a |> b
 
-pattern NilR :: forall (f :: * -> *) a. (ListLikeF f, Functor f) => Sized f 0 a
+pattern NilR :: forall (f :: * -> *) a (n :: Nat). (ListLikeF f, KnownNat n, Functor f)
+     => n ~ 0 => Sized f n a
 pattern NilR   <- (viewSnoc -> NilSV) where
   NilR = empty
