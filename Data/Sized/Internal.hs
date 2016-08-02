@@ -1,9 +1,10 @@
 {-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable, DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable, EmptyDataDecls, FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures #-}
+{-# LANGUAGE DeriveTraversable, EmptyDataDecls, ExplicitNamespaces         #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances                           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PolyKinds         #-}
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, TypeFamilies, TypeOperators  #-}
-{-# LANGUAGE UndecidableInstances                                          #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, StandaloneDeriving           #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, UndecidableInstances             #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal
        (Sized(..), instLL, instFunctor, ListLikeF,
@@ -12,14 +13,18 @@ module Data.Sized.Internal
 import           Data.Constraint
 import           Data.Constraint.Forall (Forall, inst)
 import           Data.Foldable          (Foldable)
-import           Data.ListLike          (FoldableLL (..), ListLike)
+import qualified Data.Foldable          as F
+import           Data.ListLike          (FoldableLL, ListLike)
 import qualified Data.ListLike          as LL
+import           Data.MonoTraversable
 import           Data.Proxy
 import qualified Data.Sequence          as Seq
+import           Data.Sequences
 import           Data.Traversable       (Traversable)
-import           Data.Type.Natural      (Nat)
 import           Data.Typeable          (Typeable)
 import qualified Data.Vector            as V
+import           GHC.TypeLits           (type (*), type (+), type (-))
+import           GHC.TypeLits           (type (<=), Nat)
 
 -- | @Sized@ wraps a sequential type 'f' and makes length-parametrized version.
 --   GHC's type natural is currently poor, so we adopt Peano numeral here.
@@ -30,31 +35,33 @@ import qualified Data.Vector            as V
 -- via 'Foldable' or 'Traversable' class, if 'f' is the instance of them.
 --
 -- Since 0.1.0.0
-newtype Sized f (n :: Nat) a =
+newtype Sized (f :: * -> *) (n :: Nat) a =
   Sized { runSized :: f a
         } deriving (Eq, Ord, Typeable,
                     Functor, Foldable, Traversable)
 
+type instance Element (Sized f n a) = a
 -- | Since 0.1.0.0
-instance ListLikeF f => FoldableLL (Sized f n a) a where
-  {-# SPECIALISE instance LL.FoldableLL (Sized [] n a) a #-}
-  {-# SPECIALISE instance LL.FoldableLL (Sized V.Vector n a) a #-}
-  {-# SPECIALISE instance LL.FoldableLL (Sized Seq.Seq n a) a #-}
-  foldl  f a = givenListLikeF' $ LL.foldl f a
-  {-# INLINE foldl #-}
-  foldl' f a = givenListLikeF' $ LL.foldl' f a
-  {-# INLINE foldl' #-}
-  foldl1 f   = givenListLikeF' $ LL.foldl1 f
-  {-# INLINE foldl1 #-}
-  foldr  f a = givenListLikeF' $ LL.foldr f a
-  {-# INLINE foldr #-}
-  foldr' f a = givenListLikeF' $ LL.foldr' f a
-  {-# INLINE foldr' #-}
-  foldr1 f   = givenListLikeF' $ LL.foldr1 f
-  {-# INLINE foldr1 #-}
+instance Foldable f => MonoFoldable (Sized f n a) where
+  {-# SPECIALISE instance MonoFoldable (Sized [] n a) #-}
+  {-# SPECIALISE instance MonoFoldable (Sized V.Vector n a) #-}
+  {-# SPECIALISE instance MonoFoldable (Sized Seq.Seq n a) #-}
+  ofoldl' f e = F.foldl' f e . runSized
+  {-# INLINE ofoldl' #-}
+  ofoldl1Ex' f  = F.foldl1 f . runSized
+  {-# INLINE ofoldl1Ex' #-}
+  ofoldr  f a = F.foldr f a . runSized
+  {-# INLINE ofoldr #-}
+  ofoldr1Ex f   = F.foldr1 f . runSized
+  {-# INLINE ofoldr1Ex #-}
+  ofoldMap f (Sized xs) = F.foldMap f xs
+  {-# INLINE ofoldMap #-}
+
+instance Functor f => MonoFunctor (Sized f n a)
 
 instance Show (f a) => Show (Sized f n a) where
   showsPrec d (Sized x) = showsPrec d x
+
 class (ListLike (f a) a) => LLF f a
 instance (ListLike (f a) a) => LLF f a
 
@@ -80,8 +87,8 @@ instFunctor :: ListLikeF f :- Functor f
 instFunctor = weaken1
 {-# INLINE instFunctor #-}
 
-givenListLikeF :: ListLikeF f => ((Functor f, ListLike (f a) a) => f a ->  b) -> f a -> b
-givenListLikeF = withListLikeF Proxy
+givenListLikeF :: forall f a b. ListLikeF f => ((Functor f, ListLike (f a) a) => f a ->  b) -> f a -> b
+givenListLikeF = withListLikeF (Proxy :: Proxy (f a))
 {-# INLINE givenListLikeF #-}
 
 givenListLikeF' :: ListLikeF f => ((Functor f, ListLike (f a) a) => f a ->  b) -> Sized f n a -> b
