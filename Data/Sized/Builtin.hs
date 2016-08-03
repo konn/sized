@@ -19,7 +19,7 @@ type Ordinal (n :: TL.Nat) = O.Ordinal n
 type Sized f (n :: TL.Nat) = S.Sized f n
 
 pattern (:<) :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a, TL.KnownNat n)
+                (ListLike (f a) a)
              => forall (n1 :: TL.Nat).
                 (n ~ Succ n1, SingI n1)
              => a -> Sized f n1 a -> Sized f n a
@@ -27,12 +27,12 @@ pattern a :< b = a S.:< b
 infixr 5 :<
 
 pattern NilL :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a,  SingI n)
+                (ListLike (f a) a)
              => n ~ 0 => Sized f n a
 pattern NilL = S.NilL
 
 pattern (:>) :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a, TL.KnownNat n)
+                (ListLike (f a) a)
              => forall (n1 :: TL.Nat).
                 (n ~ Succ n1, SingI n1)
              => Sized f n1 a -> a -> Sized f n a

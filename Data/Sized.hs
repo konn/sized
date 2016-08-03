@@ -83,8 +83,8 @@ import qualified Data.ListLike                as LL
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
 import           Data.Singletons.Prelude      (PNum (..), POrd (..), SOrd (..))
-import           Data.Singletons.Prelude      (Sing (..), SingI (..), SingKind(..))
-import           Data.Singletons.Prelude      (withSing, withSingI, SomeSing(..))
+import           Data.Singletons.Prelude      (Sing (..), SingI (..))
+import           Data.Singletons.Prelude      (withSing, withSingI)
 import           Data.Singletons.Prelude.Enum (PEnum (..))
 import           Data.Type.Monomorphic        (Monomorphic (..))
 import           Data.Type.Monomorphic        (Monomorphicable (..))
@@ -1036,10 +1036,10 @@ infixr 5 ::-
 -- | Case analysis for the cons-side of sequence.
 --
 -- Since 0.1.0.0
-viewCons :: forall f a n. (HasOrdinal nat, SingI (n :: nat), ListLike (f a) a)
+viewCons :: forall f a (n :: nat). (HasOrdinal nat, ListLike (f a) a)
          => Sized f n a
          -> ConsView f n a
-viewCons sz = case zeroOrSucc (sing :: Sing n) of
+viewCons sz = case zeroOrSucc (sLength sz) of
   IsZero   -> NilCV
   IsSucc n' -> withSingI n' $ P.uncurry (::-) (uncons' n' sz)
 
@@ -1054,10 +1054,10 @@ infixl 5 :-::
 -- | Case analysis for the snoc-side of sequence.
 --
 -- Since 0.1.0.0
-viewSnoc :: forall f n a. (HasOrdinal nat, SingI (n :: nat), ListLike (f a) a)
+viewSnoc :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
          => Sized f n a
          -> SnocView f n a
-viewSnoc sz = case zeroOrSucc (sing :: Sing n) of
+viewSnoc sz = case zeroOrSucc (sLength sz) of
   IsZero   -> NilSV
   IsSucc n' ->
     withSingI n' $ P.uncurry (:-::) (unsnoc' n' sz)
@@ -1101,7 +1101,7 @@ slen _           = error "impossible"
 infixr 5 :<
 -- | Pattern synonym for cons-side uncons.
 pattern (:<) :: forall nat f (n :: nat) a.
-                (ListLike (f a) a, SingI n, HasOrdinal nat)
+                (ListLike (f a) a, HasOrdinal nat)
              => forall (n1 :: nat).
                 (n ~ Succ n1, SingI n1)
              => a -> Sized f n1 a -> Sized f n a
@@ -1109,15 +1109,15 @@ pattern a :< as <- (viewCons -> a ::- as) where
    a :< as = a <| as
 
 pattern NilL :: forall nat f (n :: nat) a.
-                (ListLike (f a) a,  HasOrdinal nat, SingI n)
-             => n ~ Zero nat => Sized f n a
+                (ListLike (f a) a,  HasOrdinal nat)
+             => (n ~ Zero nat) => Sized f n a
 pattern NilL   <- (viewCons -> NilCV) where
   NilL = empty
 
 infixl 5 :>
 
 pattern (:>) :: forall nat f (n :: nat) a.
-                (ListLike (f a) a, SingI n, HasOrdinal nat)
+                (ListLike (f a) a, HasOrdinal nat)
              => forall (n1 :: nat).
                 (n ~ Succ n1, SingI n1)
              => Sized f n1 a -> a -> Sized f n a
@@ -1125,7 +1125,7 @@ pattern a :> b <- (viewSnoc -> a :-:: b) where
   a :> b = a |> b
 
 pattern NilR :: forall nat f (n :: nat) a.
-                (ListLike (f a) a,  HasOrdinal nat, SingI n)
+                (ListLike (f a) a,  HasOrdinal nat)
              => n ~ Zero nat => Sized f n a
 pattern NilR   <- (viewSnoc -> NilSV) where
   NilR = empty
