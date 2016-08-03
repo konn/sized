@@ -343,8 +343,8 @@ drop sn = Sized . LL.genericDrop (demote' sn) . runSized
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-splitAt :: (ListLike (f a) a , (n <=? m) ~ 'True)
-        => Sing n -> Sized f m a -> (Sized f n a, Sized f (m - n) a)
+splitAt :: (ListLike (f a) a , (n :<= m) ~ 'True, HasOrdinal nat)
+        => Sing (n :: nat) -> Sized f m a -> (Sized f n a, Sized f (m :-. n) a)
 splitAt n (Sized xs) =
   let (as, bs) = LL.genericSplitAt (demote' n) xs
   in (Sized as, Sized bs)
@@ -356,8 +356,8 @@ splitAt n (Sized xs) =
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-splitAtMost :: ListLike (f a) a
-            => Sing n -> Sized f m a -> (Sized f (Min n m) a, Sized f (m - n) a)
+splitAtMost :: (HasOrdinal nat, ListLike (f a) a)
+            => Sing (n :: nat) -> Sized f m a -> (Sized f (Min n m) a, Sized f (m :-. n) a)
 splitAtMost n (Sized xs) =
   let (as, bs) = LL.genericSplitAt (demote' n) xs
   in (Sized as, Sized bs)
