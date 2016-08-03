@@ -20,6 +20,9 @@ source-repository head
 
 library
   exposed-modules:     Data.Sized
+                     , Data.Sized.Builtin
+                     , Data.Sized.Peano
+                     , Data.Sized.Flipped
   other-modules:       Data.Sized.Internal
   -- other-extensions:    
   build-depends:       base             >= 4.7 && <5
@@ -32,6 +35,7 @@ library
                      , constraints
                      , equational-reasoning == 0.*
                      , monomorphic
+                     , lens >= 0.14
   -- hs-source-dirs:      
   default-language:    Haskell2010
   ghc-options:         -Wall -Wno-redundant-constraints
