@@ -96,7 +96,7 @@ import           Data.Typeable                (Typeable)
 import qualified Data.Vector                  as V
 import qualified Data.Vector.Storable         as SV
 import qualified Data.Vector.Unboxed          as UV
-import           GHC.TypeLits
+import qualified GHC.TypeLits as TL
 import           Prelude                      (Bool (..), Enum (..), Eq (..))
 import           Prelude                      (Functor, Int, Maybe (..))
 import           Prelude                      (Num (..), Ord (..), Ordering)
@@ -116,23 +116,23 @@ import           Unsafe.Coerce                (unsafeCoerce)
 -- @xs@ of element type @a@ and length @sn@.
 --
 -- Since 0.1.0.0
-data SomeSized f a where
+data SomeSized f nat a where
   SomeSized :: (ListLike (f a) a)
             => Sing n
-            -> Sized f (n :: Nat) a
-            -> SomeSized f a
+            -> Sized f (n :: nat) a
+            -> SomeSized f nat a
 
 deriving instance Typeable SomeSized
 
-instance Show (f a) => Show (SomeSized f a) where
+instance Show (f a) => Show (SomeSized f nat a) where
   showsPrec d (SomeSized _ s) = P.showParen (d > 9) $
     P.showString "SomeSized _ " . showsPrec 10 s
-instance Eq (f a) => Eq (SomeSized f a) where
+instance Eq (f a) => Eq (SomeSized f nat a) where
   (SomeSized _ (Sized xs)) == (SomeSized _ (Sized ys)) = xs == ys
 
 demote' :: HasOrdinal nat => Sing (n :: nat) -> MonomorphicRep (Sing :: nat -> Type)
 demote' = demote . Monomorphic
-{-# SPECIALISE demote' :: Sing (n :: Nat) -> P.Integer #-}
+{-# SPECIALISE demote' :: Sing (n :: TL.Nat) -> P.Integer #-}
 {-# SPECIALISE demote' :: Sing (n :: Peano.Nat) -> P.Integer #-}
 
 --------------------------------------------------------------------------------
@@ -204,15 +204,15 @@ Sized xs !! n = LL.index xs n
 (%!!) :: (HasOrdinal nat, LL.ListLike (f c) c) => Sized f n c -> Ordinal (n :: nat) -> c
 Sized xs %!! n = LL.index xs $ P.fromIntegral $ ordToInt n
 {-# INLINE (%!!) #-}
-{-# SPECIALISE (%!!) :: Sized [] (n :: Nat) a -> Ordinal n -> a #-}
+{-# SPECIALISE (%!!) :: Sized [] (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: Sized [] (n :: Peano.Nat) a -> Ordinal n -> a #-}
-{-# SPECIALISE (%!!) :: Sized V.Vector (n :: Nat) a -> Ordinal n -> a #-}
+{-# SPECIALISE (%!!) :: Sized V.Vector (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: Sized V.Vector (n :: Peano.Nat) a -> Ordinal n -> a #-}
-{-# SPECIALISE (%!!) :: UV.Unbox a => Sized UV.Vector (n :: Nat) a -> Ordinal n -> a #-}
+{-# SPECIALISE (%!!) :: UV.Unbox a => Sized UV.Vector (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: UV.Unbox a => Sized UV.Vector (n :: Peano.Nat) a -> Ordinal n -> a #-}
-{-# SPECIALISE (%!!) :: SV.Storable a => Sized SV.Vector (n :: Nat) a -> Ordinal n -> a #-}
+{-# SPECIALISE (%!!) :: SV.Storable a => Sized SV.Vector (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: SV.Storable a => Sized SV.Vector (n :: Peano.Nat) a -> Ordinal n -> a #-}
-{-# SPECIALISE (%!!) :: Sized Seq.Seq (n :: Nat) a -> Ordinal n -> a #-}
+{-# SPECIALISE (%!!) :: Sized Seq.Seq (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: Sized Seq.Seq (n :: Peano.Nat) a -> Ordinal n -> a #-}
 
 -- | Flipped version of '!!'.
@@ -339,8 +339,8 @@ takeAtMost sn = Sized . LL.genericTake (demote $ Monomorphic sn) . runSized
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-drop :: (ListLike (f a) a, (n <=? m) ~ 'True)
-     => Sing n -> Sized f m a -> Sized f (m :- n) a
+drop :: (HasOrdinal nat, ListLike (f a) a, (n :<= m) ~ 'True)
+     => Sing (n :: nat) -> Sized f m a -> Sized f (m :- n) a
 drop sn = Sized . LL.genericDrop (demote' sn) . runSized
 {-# INLINE drop #-}
 
@@ -398,7 +398,8 @@ singleton = Sized . LL.singleton
 --   existentially quantified; see also 'SomeSized'.
 --
 -- Since 0.1.0.0
-toSomeSized :: forall f a. ListLike (f a) a => f a -> SomeSized f a
+toSomeSized :: forall nat f a. (HasOrdinal nat, ListLike (f a) a)
+            => f a -> SomeSized f nat a
 toSomeSized = \xs ->
   case promote $ LL.genericLength xs of
     Monomorphic sn -> withSingI sn $ SomeSized sn $ unsafeToSized sn xs
@@ -554,14 +555,14 @@ reverse = Sized .  LL.reverse . runSized
 -- | Intersperces.
 --
 -- Since 0.1.0.0
-intersperse :: ListLike (f a) a => a -> Sized f n a -> Sized f ((2 :* n) - 1) a
+intersperse :: ListLike (f a) a => a -> Sized f n a -> Sized f ((FromInteger 2 :* n) :-. 1) a
 intersperse a = Sized . LL.intersperse a . runSized
 {-# INLINE intersperse #-}
 
 -- | Remove all duplicates.
 --
 -- Since 0.1.0.0
-nub :: (ListLike (f a) a, Eq a) => Sized f n a -> SomeSized f a
+nub :: (HasOrdinal nat, ListLike (f a) a, Eq a) => Sized f n a -> SomeSized f nat a
 nub = toSomeSized . LL.nub . runSized
 
 -- | Sorting sequence by ascending order.
@@ -628,7 +629,7 @@ fromList sn xs =
 -- | 'fromList' with the result length inferred.
 --
 -- Since 0.1.0.0
-fromList' :: (ListLike (f a) a, SingI (n :: Nat)) => [a] -> Maybe (Sized f n a)
+fromList' :: (ListLike (f a) a, SingI (n :: TL.Nat)) => [a] -> Maybe (Sized f n a)
 fromList' = withSing fromList
 {-# INLINE fromList' #-}
 
@@ -643,7 +644,7 @@ unsafeFromList _ xs = Sized $ LL.fromList xs
 -- | 'unsafeFromList' with the result length inferred.
 --
 -- Since 0.1.0.0
-unsafeFromList' :: (SingI (n :: Nat), ListLike (f a) a) => [a] -> Sized f n a
+unsafeFromList' :: (SingI (n :: TL.Nat), ListLike (f a) a) => [a] -> Sized f n a
 unsafeFromList' = withSing unsafeFromList
 {-# INLINE unsafeFromList' #-}
 
@@ -660,7 +661,7 @@ fromListWithDefault sn def xs =
 -- | 'fromListWithDefault' with the result length inferred.
 --
 -- Since 0.1.0.0
-fromListWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> [a] -> Sized f n a
+fromListWithDefault' :: (SingI (n :: TL.Nat), ListLike (f a) a) => a -> [a] -> Sized f n a
 fromListWithDefault' = withSing fromListWithDefault
 {-# INLINE fromListWithDefault' #-}
 
@@ -692,7 +693,7 @@ toSized sn xs =
 -- | 'toSized' with the result length inferred.
 --
 -- Since 0.1.0.0
-toSized' :: (ListLike (f a) a, SingI (n :: Nat)) => f a -> Maybe (Sized f n a)
+toSized' :: (ListLike (f a) a, SingI (n :: TL.Nat)) => f a -> Maybe (Sized f n a)
 toSized' = withSing toSized
 {-# INLINE toSized' #-}
 
@@ -707,7 +708,7 @@ unsafeToSized _ = Sized
 -- | 'unsafeToSized' with the result length inferred.
 --
 -- Since 0.1.0.0
-unsafeToSized' :: (SingI (n :: Nat), ListLike (f a) a) => f a -> Sized f n a
+unsafeToSized' :: (SingI (n :: TL.Nat), ListLike (f a) a) => f a -> Sized f n a
 unsafeToSized' = withSing unsafeToSized
 {-# INLINE unsafeToSized' #-}
 
@@ -724,7 +725,7 @@ toSizedWithDefault sn def xs =
 -- | 'toSizedWithDefault' with the result length inferred.
 --
 -- Since 0.1.0.0
-toSizedWithDefault' :: (SingI (n :: Nat), ListLike (f a) a) => a -> f a -> Sized f n a
+toSizedWithDefault' :: (SingI (n :: TL.Nat), ListLike (f a) a) => a -> f a -> Sized f n a
 toSizedWithDefault' = withSing toSizedWithDefault
 {-# INLINE toSizedWithDefault' #-}
 
@@ -749,25 +750,25 @@ toSizedWithDefault' = withSing toSizedWithDefault
 data Partitioned f n a where
   Partitioned :: (ListLike (f a) a)
               => Sing n
-              -> Sized f (n :: Nat) a
+              -> Sized f (n :: TL.Nat) a
               -> Sing m
-              -> Sized f (m :: Nat) a
+              -> Sized f (m :: TL.Nat) a
               -> Partitioned f (n :+ m) a
 
 -- | Take the initial segment as long as elements satisfys the predicate.
 --
 -- Since 0.1.0.0
-takeWhile :: ListLike (f a) a
-          => (a -> Bool) -> Sized f n a -> SomeSized f a
+takeWhile :: (HasOrdinal nat, ListLike (f a) a)
+          => (a -> Bool) -> Sized f n a -> SomeSized f nat a
 takeWhile p = toSomeSized . LL.takeWhile p . runSized
 {-# INLINE takeWhile #-}
 
 -- | Drop the initial segment as long as elements satisfys the predicate.
 --
 -- Since 0.1.0.0
-dropWhile :: ListLike (f a) a
-          => (a -> Bool) -> Sized f n a -> SomeSized f a
-dropWhile p =toSomeSized . LL.dropWhile p . runSized
+dropWhile :: (HasOrdinal nat, ListLike (f a) a)
+          => (a -> Bool) -> Sized f n a -> SomeSized f nat a
+dropWhile p = toSomeSized . LL.dropWhile p . runSized
 {-# INLINE dropWhile #-}
 
 -- | Invariant: @'ListLike' (f a) a@ instance must be implemented
