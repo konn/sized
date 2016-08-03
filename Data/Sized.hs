@@ -83,8 +83,8 @@ import qualified Data.ListLike                as LL
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
 import           Data.Singletons.Prelude      (PNum (..), POrd (..), SOrd (..))
-import           Data.Singletons.Prelude      (Sing (..), SingI (..))
-import           Data.Singletons.Prelude      (withSing, withSingI)
+import           Data.Singletons.Prelude      (Sing (..), SingI (..), SingKind(..))
+import           Data.Singletons.Prelude      (withSing, withSingI, SomeSing(..))
 import           Data.Singletons.Prelude.Enum (PEnum (..))
 import           Data.Type.Monomorphic        (Monomorphic (..))
 import           Data.Type.Monomorphic        (Monomorphicable (..))
@@ -160,10 +160,17 @@ length = LL.length . runSized
 
 -- | @Sing@ version of 'length'.
 --
--- Since 0.1.0.0
-sLength :: SingI n => Sized f n a -> Sing n
-sLength _ = sing
-{-# INLINE sLength #-}
+-- Since 0.2.0.0
+sLength :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+        => Sized f n a -> Sing n
+sLength (Sized xs) =
+  case promote (P.fromIntegral $ LL.length xs) of
+    Monomorphic (n :: Sing (k :: nat)) -> unsafeCoerce n
+{-# INLINE[1] sLength #-}
+{-# RULES
+"sLength/SingI" [~1] forall (xs :: SingI n => Sized f n a).
+  sLength xs = sing :: Sing n
+  #-}
 
 -- | Test if the sequence is empty or not.
 --

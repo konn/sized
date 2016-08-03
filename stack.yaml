@@ -1,6 +1,10 @@
 resolver: nightly-2016-08-02
 packages:
 - '.'
+- location:
+    git: https://github.com/konn/type-natural.git
+    commit: d7a82dba34134628a6de92e843a326238793634a
+  extra-dep: true
 build: 
   haddock: true
 extra-deps:
