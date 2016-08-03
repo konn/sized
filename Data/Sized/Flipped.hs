@@ -12,9 +12,11 @@ module Data.Sized.Flipped (Flipped(..),
 import qualified Data.Sized          as Orig
 import           Data.Sized.Internal
 
+import           Control.DeepSeq              (NFData(..))
 import           Control.Lens.At              (Index, IxValue, Ixed (..))
 import           Control.Lens.TH              (makeWrapped)
 import           Control.Lens.Wrapped         (_Wrapped)
+import           Data.Hashable                (Hashable (..))
 import           Data.Kind                    (Type)
 import qualified Data.ListLike                as LL
 import           Data.MonoTraversable         (Element, MonoFoldable (..))
@@ -35,7 +37,7 @@ import qualified GHC.TypeLits                 as TL
 --
 --   Since 0.2.0.0
 newtype Flipped f a n = Flipped { runFlipped :: Sized f n a }
-                      deriving (Show, Eq, Ord, Typeable)
+                      deriving (Show, Eq, Ord, Typeable, NFData, Hashable)
 
 makeWrapped ''Flipped
 

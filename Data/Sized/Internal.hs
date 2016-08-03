@@ -8,11 +8,13 @@
 {-# LANGUAGE UndecidableInstances                                          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal (Sized(..)) where
+import           Control.DeepSeq         (NFData (..))
 import           Control.Lens.At         (Index, IxValue, Ixed (..))
 import           Control.Lens.Indexed    (FoldableWithIndex (..))
 import           Control.Lens.Indexed    (FunctorWithIndex (..))
 import           Control.Lens.Indexed    (TraversableWithIndex (..))
 import           Data.Foldable           (Foldable)
+import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
 import           Data.MonoTraversable    (Element, MonoFoldable (..))
 import           Data.MonoTraversable    (MonoFunctor (..))
@@ -72,6 +74,9 @@ instance {-# OVERLAPS #-} SV.Storable a => MonoTraversable (Sized SV.Vector n a)
 instance {-# OVERLAPS #-} UV.Unbox a => MonoTraversable (Sized UV.Vector n a) where
   otraverse f = fmap Sized . otraverse f . runSized
   omapM f = fmap Sized . omapM f . runSized
+
+deriving instance NFData (f a) => NFData (Sized f n a)
+deriving instance Hashable (f a) => Hashable (Sized f n a)
 
 instance Show (f a) => Show (Sized f n a) where
   showsPrec d (Sized x) = showsPrec d x
