@@ -30,6 +30,8 @@ library
                      , mono-traversable >= 0.10 && < 1.1
                      , ListLike
                      , singletons       >= 2.0
+                     , deepseq
+                     , hashable
                      , vector
                      , containers
                      , constraints
