@@ -16,7 +16,7 @@ import qualified Data.Type.Ordinal            as O
 import qualified Data.Type.Natural            as PN
 
 type Ordinal (n :: PN.Nat) = O.Ordinal n
-type Sized f (n :: PN.Nat) a = S.Sized f n a
+type Sized f (n :: PN.Nat) = S.Sized f n
 
 pattern (:<) :: forall f (n :: PN.Nat) a.
                 (ListLike (f a) a, PN.SingI n)

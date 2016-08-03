@@ -16,7 +16,7 @@ import qualified Data.Type.Ordinal            as O
 import qualified GHC.TypeLits                 as TL
 
 type Ordinal (n :: TL.Nat) = O.Ordinal n
-type Sized f (n :: TL.Nat) a = S.Sized f n a
+type Sized f (n :: TL.Nat) = S.Sized f n
 
 pattern (:<) :: forall f (n :: TL.Nat) a.
                 (ListLike (f a) a, TL.KnownNat n)
