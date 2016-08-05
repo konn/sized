@@ -168,9 +168,11 @@ sLength :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
 sLength (Sized xs) =
   case promote (P.fromIntegral $ LL.length xs) of
     Monomorphic (n :: Sing (k :: nat)) -> unsafeCoerce n
-{-# INLINE[1] sLength #-}
+{-# INLINE[2] sLength #-}
 {-# RULES
-"sLength/SingI" [~1] forall (xs :: SingI n => Sized f n a).
+"sLength/KnownNat" [~1] forall (xs :: TL.KnownNat n => Sized f n a).
+  sLength xs = sing :: Sing n
+"sLength/SingI" [~2] forall (xs :: SingI n => Sized f n a).
   sLength xs = sing :: Sing n
   #-}
 
@@ -1139,9 +1141,6 @@ instance (Functor f, HasOrdinal nat, SingI n, ListLikeF f)
   {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized [] (n :: TL.Nat)) #-}
   {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized Seq.Seq (n :: TL.Nat)) #-}
   {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized V.Vector (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n => P.Applicative (Sized [] (n :: Peano.Nat)) #-}
-  {-# SPECIALISE instance SingI n => P.Applicative (Sized Seq.Seq (n :: Peano.Nat)) #-}
-  {-# SPECIALISE instance SingI n => P.Applicative (Sized V.Vector (n :: Peano.Nat)) #-}
 
   pure (x :: a) =
     withListLikeF (Nothing :: Maybe (f a)) $
