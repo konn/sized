@@ -7,18 +7,27 @@
 {-# LANGUAGE TemplateHaskell, TypeFamilies, TypeInType, TypeOperators      #-}
 {-# LANGUAGE UndecidableInstances                                          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Data.Sized.Internal (Sized(..)) where
+module Data.Sized.Internal
+       (Sized(..),instLL, instFunctor, ListLikeF,
+        withListLikeF, withListLikeF'
+       ) where
 import           Control.DeepSeq         (NFData (..))
 import           Control.Lens.At         (Index, IxValue, Ixed (..))
 import           Control.Lens.Indexed    (FoldableWithIndex (..))
 import           Control.Lens.Indexed    (FunctorWithIndex (..))
 import           Control.Lens.Indexed    (TraversableWithIndex (..))
+import           Data.Constraint         ((:-) (..), (:=>) (..), Class (..))
+import           Data.Constraint         (Dict (..), trans, weaken1, weaken2)
+import           Data.Constraint         ((&&&), (\\))
+import           Data.Constraint.Forall  (Forall, inst)
 import           Data.Foldable           (Foldable)
 import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
+import           Data.ListLike           (ListLike)
 import           Data.MonoTraversable    (Element, MonoFoldable (..))
 import           Data.MonoTraversable    (MonoFunctor (..))
 import           Data.MonoTraversable    (MonoTraversable (..))
+import           Data.Proxy              (Proxy (..))
 import qualified Data.Sequence           as Seq
 import           Data.Singletons.Prelude (SingI)
 import           Data.Traversable        (Traversable)
@@ -169,3 +178,41 @@ instance (Integral i, TraversableWithIndex i f, HasOrdinal nat, SingI n)
   {-# SPECIALISE instance SingI n
                        => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat))  #-}
 
+class (ListLike (f a) a) => LLF f a
+instance (ListLike (f a) a) => LLF f a
+
+instance Class (ListLike (f a) a) (LLF f a) where
+  cls = Sub Dict
+instance (LLF f a) :=> (ListLike (f a) a) where
+  ins = Sub Dict
+
+-- | Functor @f@ such that there is instance @ListLike (f a) a@ for any @a@.
+--
+-- Since 0.1.0.0
+type ListLikeF f = (Functor f, Forall (LLF f))
+
+instLLF :: forall f a. Forall (LLF f) :- ListLike (f a) a
+instLLF = trans ins inst
+{-# INLINE instLLF #-}
+
+instLL :: forall f a. ListLikeF f :- ListLike (f a) a
+instLL = trans instLLF weaken2
+{-# INLINE instLL #-}
+
+instFunctor :: ListLikeF f :- Functor f
+instFunctor = weaken1
+{-# INLINE instFunctor #-}
+
+withListLikeF :: forall pxy f a b. ListLikeF f
+              => pxy (f a) -> ((Functor f, ListLike (f a) a) => b) -> b
+withListLikeF _ b = b \\ llDic &&& instFunctor
+  where
+    llDic = instLL :: ListLikeF f :- ListLike (f a) a
+{-# INLINE withListLikeF #-}
+
+withListLikeF' :: ListLikeF f => f a -> ((Functor f, ListLike (f a) a) => b) -> b
+withListLikeF' xs = withListLikeF (toProxy xs)
+{-# INLINE withListLikeF' #-}
+
+toProxy :: a -> Proxy a
+toProxy a = Proxy

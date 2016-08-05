@@ -1,12 +1,12 @@
-{-# LANGUAGE AllowAmbiguousTypes, ConstraintKinds, DataKinds         #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveFoldable, DeriveFunctor       #-}
-{-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving    #-}
-{-# LANGUAGE KindSignatures, LambdaCase, LiberalTypeSynonyms         #-}
-{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction        #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables         #-}
-{-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies      #-}
-{-# LANGUAGE TypeInType, TypeOperators, ViewPatterns                 #-}
+{-# LANGUAGE AllowAmbiguousTypes, ConstraintKinds, DataKinds               #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveFoldable, DeriveFunctor             #-}
+{-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving          #-}
+{-# LANGUAGE KindSignatures, LambdaCase, LiberalTypeSynonyms               #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction              #-}
+{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables               #-}
+{-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies            #-}
+{-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
 -- | This module provides the functionality to make length-parametrized types
@@ -21,6 +21,8 @@
 module Data.Sized
        ( -- * Main Data-types
          Sized(), SomeSized(..),
+         instLL, instFunctor, ListLikeF,
+         withListLikeF, withListLikeF',
          -- * Accessors
          -- ** Length information
          length, sLength, null,
@@ -96,7 +98,7 @@ import           Data.Typeable                (Typeable)
 import qualified Data.Vector                  as V
 import qualified Data.Vector.Storable         as SV
 import qualified Data.Vector.Unboxed          as UV
-import qualified GHC.TypeLits as TL
+import qualified GHC.TypeLits                 as TL
 import           Prelude                      (Bool (..), Enum (..), Eq (..))
 import           Prelude                      (Functor, Int, Maybe (..))
 import           Prelude                      (Num (..), Ord (..), Ordering)
@@ -1130,3 +1132,25 @@ pattern NilR :: forall nat f (n :: nat) a.
              => n ~ Zero nat => Sized f n a
 pattern NilR   <- (viewSnoc -> NilSV) where
   NilR = empty
+
+-- | Applicative instance, generalizing @'Data.Monoid.ZipList'@.
+instance (Functor f, HasOrdinal nat, SingI n, ListLikeF f)
+      => P.Applicative (Sized f (n :: nat)) where
+  {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized [] (n :: TL.Nat)) #-}
+  {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized Seq.Seq (n :: TL.Nat)) #-}
+  {-# SPECIALISE instance TL.KnownNat n => P.Applicative (Sized V.Vector (n :: TL.Nat)) #-}
+  {-# SPECIALISE instance SingI n => P.Applicative (Sized [] (n :: Peano.Nat)) #-}
+  {-# SPECIALISE instance SingI n => P.Applicative (Sized Seq.Seq (n :: Peano.Nat)) #-}
+  {-# SPECIALISE instance SingI n => P.Applicative (Sized V.Vector (n :: Peano.Nat)) #-}
+
+  pure (x :: a) =
+    withListLikeF (Nothing :: Maybe (f a)) $
+    replicate' x
+  {-# INLINE pure #-}
+
+  Sized (fs :: f (a -> b)) <*> Sized (xs :: f a) =
+    withListLikeF (Nothing :: Maybe (f (a -> b))) $
+    withListLikeF (Nothing :: Maybe (f a)) $
+    withListLikeF (Nothing :: Maybe (f b)) $
+    Sized $ LL.zipWith ($) fs xs
+  {-# INLINE (<*>) #-}
