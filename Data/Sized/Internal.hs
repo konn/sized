@@ -215,4 +215,4 @@ withListLikeF' xs = withListLikeF (toProxy xs)
 {-# INLINE withListLikeF' #-}
 
 toProxy :: a -> Proxy a
-toProxy a = Proxy
+toProxy _ = Proxy
