@@ -238,7 +238,7 @@ sIndex = flip (%!!)
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.1.0.0
-head :: (HasOrdinal nat, ListLike (f a) b) => Sized f (Succ n) a -> b
+head :: (HasOrdinal nat, ListLike (f a) b, (Zero nat :< n) ~ 'True) => Sized f n a -> b
 head = LL.head . runSized
 {-# INLINE head #-}
 
