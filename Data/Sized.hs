@@ -426,7 +426,7 @@ replicate' = withSing replicate
 {-# INLINE replicate' #-}
 
 generate :: forall (nat :: Type) (n :: nat) (a :: Type) f.
-            (ListLike (f a) a, HasOrdinal nat, SingI n)
+            (ListLike (f a) a, HasOrdinal nat)
          => Sing n -> (Ordinal n -> a) -> Sized f n a
 generate n f = unsafeFromList n [f i | i <- enumOrdinal n ]
 {-# INLINE [1] generate #-}
@@ -435,13 +435,13 @@ generate n f = unsafeFromList n [f i | i <- enumOrdinal n ]
   generate (n :: Sing (n :: (nat :: Type))) f = withSingI n $ Sized (V.generate (fromSing' n) (f . toEnum))
 "generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: SV.Storable a => Ordinal n -> a).
-  generate n f = Sized (SV.generate (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (SV.generate (fromSing' n) (f . toEnum))
 "generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: UV.Unbox a => Ordinal n -> a).
-  generate n f = Sized (UV.generate (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (UV.generate (fromSing' n) (f . toEnum))
 "generate/Seq" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: Ordinal n -> a).
-  generate n f = Sized (Seq.fromFunction (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (Seq.fromFunction (fromSing' n) (f . toEnum))
 #-}
 
 fromSing' :: HasOrdinal nat => Sing (n :: nat) -> Int
