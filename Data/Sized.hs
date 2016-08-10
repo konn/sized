@@ -82,6 +82,7 @@ import           Data.Kind                    (Type)
 import qualified Data.List                    as L
 import           Data.ListLike                (ListLike)
 import qualified Data.ListLike                as LL
+import qualified Data.MonoTraversable as MT
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
 import           Data.Singletons.Prelude      (PNum (..), POrd (..), SOrd (..))
@@ -998,6 +999,13 @@ sFindIndicesIF p = flip appEndo [] .
 -- "sFindIndicesIF/vector" [~1] forall p.
 --   sFindIndicesIF p = V.toList . V.map toEnum . V.findIndices p . runSized
 --   #-}
+
+{-# RULES
+"Foldable.sum/Vector"
+  F.sum = V.sum . runSized
+"MonoTraversable.sum/Vector"
+  MT.osum = V.sum . runSized
+  #-}
 
 -- | Returns the index of the given element in the list, if exists.
 --
