@@ -74,7 +74,7 @@ module Data.Sized
 
 import Data.Sized.Internal
 
-import           Control.Applicative          ((<$>), (<*>))
+import           Control.Applicative          ((<$>), (<*>), ZipList(..))
 import           Control.Lens.Indexed         (FoldableWithIndex (..), ifind)
 import           Data.Foldable                (Foldable)
 import qualified Data.Foldable                as F
@@ -1208,4 +1208,12 @@ instance (Functor f, HasOrdinal nat, SingI n, ListLikeF f)
     withListLikeF (Nothing :: Maybe (f a)) $
     withListLikeF (Nothing :: Maybe (f b)) $
     zipWithSame ($) fs xs
-  {-# INLINE (<*>) #-}
+  {-# INLINE [1] (<*>) #-}
+{-# RULES
+"<*>/List" [~1] forall fs xs.
+  Sized fs <*> Sized xs = Sized (getZipList (ZipList fs <*> ZipList xs))
+"<*>/Seq" [~1] forall fs xs.
+  Sized fs <*> Sized xs = Sized (Seq.zipWith ($) fs xs)
+"<*>/Vector" [~1] forall fs xs.
+  Sized fs <*> Sized xs = Sized (V.zipWith ($) fs xs)
+ #-}
