@@ -497,7 +497,18 @@ concat =  Sized . F.foldr LL.append LL.empty . P.fmap runSized
 zip :: (ListLike (f a) a, ListLike (f b) b, ListLike (f (a, b)) (a, b))
     => Sized f n a -> Sized f m b -> Sized f (Min n m) (a, b)
 zip (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
-{-# INLINE zip #-}
+{-# INLINE [1] zip #-}
+{-# RULES
+"zip/Seq" [~1] forall xs ys.
+  zip (Sized xs) (Sized ys) = Sized (Seq.zip xs ys)
+"zip/List" [~1] forall xs ys.
+  zip (Sized xs) (Sized ys) = Sized (P.zip xs ys)
+"zip/Vector" [~1] forall xs ys.
+  zip (Sized xs) (Sized ys) = Sized (V.zip xs ys)
+"zip/UVector" [~1]
+  forall (xs :: UV.Unbox a => UV.Vector a) (ys :: UV.Unbox b => UV.Vector b).
+  zip (Sized xs) (Sized ys) = Sized (UV.zip xs ys)
+  #-}
 
 -- | 'zip' for the sequences of the same length.
 --
@@ -505,7 +516,18 @@ zip (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
 zipSame :: (ListLike (f a) a, ListLike (f b) b, ListLike (f (a, b)) (a, b))
         => Sized f n a -> Sized f n b -> Sized f n (a, b)
 zipSame (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
-{-# INLINE zipSame #-}
+{-# INLINE [1] zipSame #-}
+{-# RULES
+"zipSame/Seq" [~1] forall xs ys.
+  zipSame (Sized xs) (Sized ys) = Sized (Seq.zip xs ys)
+"zipSame/List" [~1] forall xs ys.
+  zipSame (Sized xs) (Sized ys) = Sized (P.zip xs ys)
+"zipSame/Vector" [~1] forall xs ys.
+  zipSame (Sized xs) (Sized ys) = Sized (V.zip xs ys)
+"zipSame/UVector" [~1]
+  forall (xs :: UV.Unbox a => UV.Vector a) (ys :: UV.Unbox b => UV.Vector b).
+  zipSame (Sized xs) (Sized ys) = Sized (UV.zip xs ys)
+  #-}
 
 -- | Zipping two sequences with funtion. Length is adjusted to shorter one.
 --
@@ -513,7 +535,24 @@ zipSame (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
 zipWith :: (ListLike (f a) a, ListLike (f b) b, ListLike (f c) c)
     => (a -> b -> c) -> Sized f n a -> Sized f m b -> Sized f (Min n m) c
 zipWith f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
-{-# INLINE zipWith #-}
+{-# INLINE [1] zipWith #-}
+
+{-# RULES
+"zipWith/Seq" [~1] forall f xs ys.
+  zipWith f (Sized xs) (Sized ys) = Sized (Seq.zipWith f xs ys)
+"zipWith/List" [~1] forall f xs ys.
+  zipWith f (Sized xs) (Sized ys) = Sized (P.zipWith f xs ys)
+"zipWith/Vector" [~1] forall f xs ys.
+  zipWith f (Sized xs) (Sized ys) = Sized (V.zipWith f xs ys)
+"zipWith/UVector" [~1]
+  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c)
+    xs ys.
+  zipWith f (Sized xs) (Sized ys) = Sized (UV.zipWith f xs ys)
+"zipWith/MVector" [~1]
+  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c)
+    xs ys.
+  zipWith f (Sized xs) (Sized ys) = Sized (SV.zipWith f xs ys)
+  #-}
 
 -- | 'zipWith' for the sequences of the same length.
 --
@@ -521,7 +560,24 @@ zipWith f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
 zipWithSame :: (ListLike (f a) a, ListLike (f b) b, ListLike (f c) c)
             => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
 zipWithSame f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
-{-# INLINE zipWithSame #-}
+{-# INLINE [1] zipWithSame #-}
+
+{-# RULES
+"zipWithSame/Seq" [~1] forall f xs ys.
+  zipWithSame f (Sized xs) (Sized ys) = Sized (Seq.zipWith f xs ys)
+"zipWithSame/List" [~1] forall f xs ys.
+  zipWithSame f (Sized xs) (Sized ys) = Sized (P.zipWith f xs ys)
+"zipWithSame/Vector" [~1] forall f xs ys.
+  zipWithSame f (Sized xs) (Sized ys) = Sized (V.zipWith f xs ys)
+"zipWithSame/UVector" [~1]
+  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c)
+    xs ys.
+  zipWithSame f (Sized xs) (Sized ys) = Sized (UV.zipWith f xs ys)
+"zipWithSame/MVector" [~1]
+  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c)
+    xs ys.
+  zipWithSame f (Sized xs) (Sized ys) = Sized (SV.zipWith f xs ys)
+  #-}
 
 -- | Unzipping the sequence of tuples.
 --
@@ -1147,9 +1203,9 @@ instance (Functor f, HasOrdinal nat, SingI n, ListLikeF f)
     replicate' x
   {-# INLINE pure #-}
 
-  Sized (fs :: f (a -> b)) <*> Sized (xs :: f a) =
+  (fs :: Sized f n (a -> b)) <*> (xs :: Sized f n a) =
     withListLikeF (Nothing :: Maybe (f (a -> b))) $
     withListLikeF (Nothing :: Maybe (f a)) $
     withListLikeF (Nothing :: Maybe (f b)) $
-    Sized $ LL.zipWith ($) fs xs
+    zipWithSame ($) fs xs
   {-# INLINE (<*>) #-}
