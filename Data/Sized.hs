@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving          #-}
 {-# LANGUAGE KindSignatures, LambdaCase, LiberalTypeSynonyms               #-}
 {-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction              #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables               #-}
+{-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables, RankNTypes   #-}
 {-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies            #-}
 {-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
@@ -33,7 +33,7 @@ module Data.Sized
          tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
          -- * Construction
          -- ** Initialisation
-         empty, singleton, toSomeSized, replicate, replicate',
+         empty, singleton, toSomeSized, replicate, replicate', generate,
          -- ** Concatenation
          cons, (<|), snoc, (|>), append, (++), concat,
          -- ** Zips
@@ -85,6 +85,7 @@ import qualified Data.ListLike                as LL
 import qualified Data.MonoTraversable as MT
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
+import           Data.Singletons.TypeLits     (withKnownNat)
 import           Data.Singletons.Prelude      (PNum (..), POrd (..), SOrd (..))
 import           Data.Singletons.Prelude      (Sing (..), SingI (..))
 import           Data.Singletons.Prelude      (withSing, withSingI)
@@ -93,7 +94,7 @@ import           Data.Type.Monomorphic        (Monomorphic (..))
 import           Data.Type.Monomorphic        (Monomorphicable (..))
 import qualified Data.Type.Natural            as Peano
 import           Data.Type.Natural.Class
-import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..))
+import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..), enumOrdinal)
 import           Data.Type.Ordinal            (ordToInt, unsafeFromInt)
 import           Data.Typeable                (Typeable)
 import qualified Data.Vector                  as V
@@ -424,6 +425,28 @@ replicate' :: (HasOrdinal nat, SingI (n :: nat), ListLike (f a) a) => a -> Sized
 replicate' = withSing replicate
 {-# INLINE replicate' #-}
 
+generate :: forall (nat :: Type) (n :: nat) (a :: Type) f.
+            (ListLike (f a) a, HasOrdinal nat, SingI n)
+         => Sing n -> (Ordinal n -> a) -> Sized f n a
+generate n f = unsafeFromList n [f i | i <- enumOrdinal n ]
+{-# INLINE [1] generate #-}
+{-# RULES
+"generate/Vector" [~1] forall (n :: (HasOrdinal nat) => Sing (n :: nat)) (f :: Ordinal n -> a).
+  generate (n :: Sing (n :: (nat :: Type))) f = withSingI n $ Sized (V.generate (fromSing' n) (f . toEnum))
+"generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
+                       (f :: SV.Storable a => Ordinal n -> a).
+  generate n f = Sized (SV.generate (fromSing' n) (f . toEnum))
+"generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
+                       (f :: UV.Unbox a => Ordinal n -> a).
+  generate n f = Sized (UV.generate (fromSing' n) (f . toEnum))
+"generate/Seq" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
+                       (f :: Ordinal n -> a).
+  generate n f = Sized (Seq.fromFunction (fromSing' n) (f . toEnum))
+#-}
+
+fromSing' :: HasOrdinal nat => Sing (n :: nat) -> Int
+fromSing' = P.fromIntegral . demote . Monomorphic
+
 --------------------------------------------------------------------------------
 --- Concatenation
 --------------------------------------------------------------------------------
@@ -698,16 +721,41 @@ fromList' = withSing fromList
 --   equal to @n@, then something unusual happens.
 --
 -- Since 0.1.0.0
-unsafeFromList :: forall f n a. ListLike (f a) a => Sing n -> [a] -> Sized f n a
+unsafeFromList :: forall (nat :: Type) f (n :: nat) a. ListLike (f a) a => Sing n -> [a] -> Sized f n a
 unsafeFromList _ xs = Sized $ LL.fromList xs
-{-# INLINE [2] unsafeFromList #-}
+{-# INLINE [1] unsafeFromList #-}
+{-# RULES
+"unsafeFromList/List" [~1] forall s xs.
+  unsafeFromList s  xs = Sized xs
+"unsafeFromList/Vector" [~1] forall s (xs :: [a]).
+  unsafeFromList s  xs = Sized (V.fromList xs)
+"unsafeFromList/Seq" [~1] forall s (xs :: [a]).
+  unsafeFromList s  xs = Sized (Seq.fromList xs)
+"unsafeFromList/SVector" [~1] forall s (xs :: SV.Storable a => [a]).
+  unsafeFromList s  xs = Sized (SV.fromList xs)
+"unsafeFromList/UVector" [~1] forall s (xs :: UV.Unbox a => [a]).
+  unsafeFromList s  xs = Sized (UV.fromList xs)
+  #-}
 
 -- | 'unsafeFromList' with the result length inferred.
 --
 -- Since 0.1.0.0
 unsafeFromList' :: (SingI (n :: TL.Nat), ListLike (f a) a) => [a] -> Sized f n a
 unsafeFromList' = withSing unsafeFromList
-{-# INLINE unsafeFromList' #-}
+{-# INLINE [1] unsafeFromList' #-}
+{-# RULES
+"unsafeFromList'/List" [~1] forall xs.
+  unsafeFromList'  xs = Sized xs
+"unsafeFromList'/Vector" [~1] forall (xs :: [a]).
+  unsafeFromList'  xs = Sized (V.fromList xs)
+"unsafeFromList'/Seq" [~1] forall (xs :: [a]).
+  unsafeFromList'  xs = Sized (Seq.fromList xs)
+"unsafeFromList'/SVector" [~1] forall (xs :: SV.Storable a => [a]).
+  unsafeFromList'  xs = Sized (SV.fromList xs)
+"unsafeFromList'/UVector" [~1] forall (xs :: UV.Unbox a => [a]).
+  unsafeFromList'  xs = Sized (UV.fromList xs)
+  #-}
+
 
 -- | Construct a @Sized f n a@ by padding default value if the given list is short.
 --
