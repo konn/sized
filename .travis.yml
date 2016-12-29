@@ -9,8 +9,16 @@ matrix:
   include:
     - env: STACK_YAML=stack.yaml
       compiler: ": #GHC 8.0.1"
+      addons:
+        apt:
+          packages:
+            - libgmp3-dev
     - env: STACK_YAML=stack-head.yaml
       compiler: ": #GHC HEAD"
+      addons:
+        apt:
+          packages:
+            - libgmp3-dev
   allow_failures:
     - env: STACK_YAML=stack-head.yaml
 
