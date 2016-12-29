@@ -1,16 +1,17 @@
-resolver: nightly-2016-08-02
+resolver: lts-7.14
 packages:
 - '.'
 - location:
     git: https://github.com/konn/type-natural.git
-    commit: d7a82dba34134628a6de92e843a326238793634a
+    commit: c2173428337e59c46a83f7e989161d01f4b0a8eb
   extra-dep: true
 build: 
   haddock: true
 extra-deps:
-- type-natural-0.6.0.0
-- equational-reasoning-0.4.0.0
+- type-natural-0.7.1.2
+- equational-reasoning-0.4.1.1
 - monomorphic-0.0.3.3
 - singletons-2.2
 - ghc-typelits-presburger-0.1.1.0
 - th-desugar-1.6
+pvp-bounds: both
