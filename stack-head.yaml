@@ -1,4 +1,4 @@
-resolver: nightly-2016-08-02
+resolver: nightly-2017-09-18
 skip-ghc-check: true
 
 packages:
