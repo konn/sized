@@ -25,9 +25,9 @@ library
                      , Data.Sized.Flipped
   other-modules:       Data.Sized.Internal
   -- other-extensions:    
-  build-depends:       base             >= 4.7 && <5
+  build-depends:       base             >= 4.7
                      , type-natural     >= 0.7.1.2
-                     , mono-traversable >= 0.10 && < 1.1
+                     , mono-traversable >= 0.10
                      , ListLike
                      , singletons       >= 2.0
                      , deepseq
