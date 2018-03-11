@@ -11,5 +11,5 @@ extra-deps:
 - git: https://github.com/konn/type-natural.git
   commit: 15b929cb78f30abe9e6531936d15e6d6d8f30f3c
 
-- git: https://github.com/konn/ghc-typelits-natnormalise.git
-  commit: 46f25195b85057757f5aac4e31d07391c9a95ac2
+- git: https://github.com/clash-lang/ghc-typelits-natnormalise.git
+  commit: 1178631cc6b78ea9b92fcf29e2944d1a148f2d71
