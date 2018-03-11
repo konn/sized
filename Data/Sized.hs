@@ -82,20 +82,16 @@ import           Data.Kind                    (Type)
 import qualified Data.List                    as L
 import           Data.ListLike                (ListLike)
 import qualified Data.ListLike                as LL
-import qualified Data.MonoTraversable as MT
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
-import           Data.Singletons.TypeLits     (withKnownNat)
-import           Data.Singletons.Prelude      (PNum (..), POrd (..), SOrd (..))
+import           Data.Singletons.Prelude      (SomeSing(..), PNum (..), POrd (..), SOrd (..))
 import           Data.Singletons.Prelude      (Sing (..), SingI (..))
 import           Data.Singletons.Prelude      (withSing, withSingI)
 import           Data.Singletons.Prelude.Enum (PEnum (..))
-import           Data.Type.Monomorphic        (Monomorphic (..))
-import           Data.Type.Monomorphic        (Monomorphicable (..))
 import qualified Data.Type.Natural            as Peano
 import           Data.Type.Natural.Class
 import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..), enumOrdinal)
-import           Data.Type.Ordinal            (ordToInt, unsafeFromInt)
+import           Data.Type.Ordinal            (ordToNatural, unsafeNaturalToOrd)
 import           Data.Typeable                (Typeable)
 import qualified Data.Vector                  as V
 import qualified Data.Vector.Storable         as SV
@@ -134,11 +130,6 @@ instance Show (f a) => Show (SomeSized f nat a) where
 instance Eq (f a) => Eq (SomeSized f nat a) where
   (SomeSized _ (Sized xs)) == (SomeSized _ (Sized ys)) = xs == ys
 
-demote' :: HasOrdinal nat => Sing (n :: nat) -> MonomorphicRep (Sing :: nat -> Type)
-demote' = demote . Monomorphic
-{-# SPECIALISE demote' :: Sing (n :: TL.Nat) -> P.Integer #-}
-{-# SPECIALISE demote' :: Sing (n :: Peano.Nat) -> P.Integer #-}
-
 --------------------------------------------------------------------------------
 -- Accessors
 --------------------------------------------------------------------------------
@@ -168,15 +159,9 @@ length = LL.length . runSized
 sLength :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
         => Sized f n a -> Sing n
 sLength (Sized xs) =
-  case promote (P.fromIntegral $ LL.length xs) of
-    Monomorphic (n :: Sing (k :: nat)) -> unsafeCoerce n
+  case fromNatural (P.fromIntegral $ LL.length xs) of
+    SomeSing (n :: Sing (k :: nat)) -> unsafeCoerce n
 {-# INLINE[2] sLength #-}
-{-# RULES
-"sLength/KnownNat" [~1] forall (xs :: TL.KnownNat n => Sized f n a).
-  sLength xs = sing :: Sing n
-"sLength/SingI" [~2] forall (xs :: SingI n => Sized f n a).
-  sLength xs = sing :: Sing n
-  #-}
 
 -- | Test if the sequence is empty or not.
 --
@@ -208,7 +193,7 @@ Sized xs !! n = LL.index xs n
 --
 -- Since 0.1.0.0
 (%!!) :: (HasOrdinal nat, LL.ListLike (f c) c) => Sized f n c -> Ordinal (n :: nat) -> c
-Sized xs %!! n = LL.index xs $ P.fromIntegral $ ordToInt n
+Sized xs %!! n = LL.index xs $ P.fromIntegral $ ordToNatural n
 {-# INLINE (%!!) #-}
 {-# SPECIALISE (%!!) :: Sized [] (n :: TL.Nat) a -> Ordinal n -> a #-}
 {-# SPECIALISE (%!!) :: Sized [] (n :: Peano.Nat) a -> Ordinal n -> a #-}
@@ -240,7 +225,7 @@ sIndex = flip (%!!)
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.1.0.0
-head :: (HasOrdinal nat, ListLike (f a) b, (Zero nat :< n) ~ 'True) => Sized f n a -> b
+head :: (HasOrdinal nat, ListLike (f a) b, (Zero nat < n) ~ 'True) => Sized f n a -> b
 head = LL.head . runSized
 {-# INLINE head #-}
 
@@ -249,7 +234,7 @@ head = LL.head . runSized
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.1.0.0
-last :: (HasOrdinal nat, (Zero nat :< n) ~ 'True, ListLike (f a) b) => Sized f n a -> b
+last :: (HasOrdinal nat, (Zero nat < n) ~ 'True, ListLike (f a) b) => Sized f n a -> b
 last = LL.last . runSized
 {-# INLINE last #-}
 
@@ -324,9 +309,9 @@ init = Sized . LL.init . runSized
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-take :: (ListLike (f a) a, (n :<= m) ~ 'True, HasOrdinal nat)
+take :: (ListLike (f a) a, (n <= m) ~ 'True, HasOrdinal nat)
      => Sing (n :: nat) -> Sized f m a -> Sized f n a
-take sn = Sized . LL.genericTake (demote' sn) . runSized
+take sn = Sized . LL.genericTake (toNatural sn) . runSized
 {-# INLINE take #-}
 
 -- | @take k xs@ takes first @k@ element of @xs@ at most.
@@ -336,7 +321,7 @@ take sn = Sized . LL.genericTake (demote' sn) . runSized
 -- Since 0.1.0.0
 takeAtMost :: (ListLike (f a) a, HasOrdinal nat)
            => Sing (n :: nat) -> Sized f m a -> Sized f (Min n m) a
-takeAtMost sn = Sized . LL.genericTake (demote $ Monomorphic sn) . runSized
+takeAtMost sn = Sized . LL.genericTake (toNatural sn) . runSized
 {-# INLINE takeAtMost #-}
 
 -- | @drop k xs@ drops first @k@ element of @xs@ and returns
@@ -345,9 +330,9 @@ takeAtMost sn = Sized . LL.genericTake (demote $ Monomorphic sn) . runSized
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-drop :: (HasOrdinal nat, ListLike (f a) a, (n :<= m) ~ 'True)
-     => Sing (n :: nat) -> Sized f m a -> Sized f (m :- n) a
-drop sn = Sized . LL.genericDrop (demote' sn) . runSized
+drop :: (HasOrdinal nat, ListLike (f a) a, (n <= m) ~ 'True)
+     => Sing (n :: nat) -> Sized f m a -> Sized f (m - n) a
+drop sn = Sized . LL.genericDrop (toNatural sn) . runSized
 {-# INLINE drop #-}
 
 -- | @splitAt k xs@ split @xs@ at @k@, where
@@ -356,10 +341,10 @@ drop sn = Sized . LL.genericDrop (demote' sn) . runSized
 -- takes at least O(k) regardless of base container.
 --
 -- Since 0.1.0.0
-splitAt :: (ListLike (f a) a , (n :<= m) ~ 'True, HasOrdinal nat)
-        => Sing (n :: nat) -> Sized f m a -> (Sized f n a, Sized f (m :-. n) a)
+splitAt :: (ListLike (f a) a , (n <= m) ~ 'True, HasOrdinal nat)
+        => Sing (n :: nat) -> Sized f m a -> (Sized f n a, Sized f (m -. n) a)
 splitAt n (Sized xs) =
-  let (as, bs) = LL.genericSplitAt (demote' n) xs
+  let (as, bs) = LL.genericSplitAt (toNatural n) xs
   in (Sized as, Sized bs)
 {-# INLINE splitAt #-}
 
@@ -370,9 +355,9 @@ splitAt n (Sized xs) =
 --
 -- Since 0.1.0.0
 splitAtMost :: (HasOrdinal nat, ListLike (f a) a)
-            => Sing (n :: nat) -> Sized f m a -> (Sized f (Min n m) a, Sized f (m :-. n) a)
+            => Sing (n :: nat) -> Sized f m a -> (Sized f (Min n m) a, Sized f (m -. n) a)
 splitAtMost n (Sized xs) =
-  let (as, bs) = LL.genericSplitAt (demote' n) xs
+  let (as, bs) = LL.genericSplitAt (toNatural n) xs
   in (Sized as, Sized bs)
 {-# INLINE splitAtMost #-}
 
@@ -407,15 +392,15 @@ singleton = Sized . LL.singleton
 toSomeSized :: forall nat f a. (HasOrdinal nat, ListLike (f a) a)
             => f a -> SomeSized f nat a
 toSomeSized = \xs ->
-  case promote $ LL.genericLength xs of
-    Monomorphic sn -> withSingI sn $ SomeSized sn $ unsafeToSized sn xs
+  case fromNatural $ LL.genericLength xs of
+    SomeSing sn -> withSingI sn $ SomeSized sn $ unsafeToSized sn xs
 
 -- | Replicates the same value.
 --
 -- Since 0.1.0.0
 replicate :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
           => Sing n -> a -> Sized f n a
-replicate sn a = Sized $ LL.genericReplicate (demote $ Monomorphic sn) a
+replicate sn a = Sized $ LL.genericReplicate (toNatural sn) a
 {-# INLINE replicate #-}
 
 -- | 'replicate' with the length inferred.
@@ -432,20 +417,17 @@ generate n f = unsafeFromList n [f i | i <- enumOrdinal n ]
 {-# INLINE [1] generate #-}
 {-# RULES
 "generate/Vector" [~1] forall (n :: (HasOrdinal nat) => Sing (n :: nat)) (f :: Ordinal n -> a).
-  generate (n :: Sing (n :: (nat :: Type))) f = withSingI n $ Sized (V.generate (fromSing' n) (f . toEnum))
+  generate (n :: Sing (n :: (nat :: Type))) f = withSingI n $ Sized (V.generate (P.fromIntegral $ toNatural n) (f . toEnum))
 "generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: SV.Storable a => Ordinal n -> a).
-  generate n f = withSingI n $ Sized (SV.generate (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (SV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
 "generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: UV.Unbox a => Ordinal n -> a).
-  generate n f = withSingI n $ Sized (UV.generate (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (UV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
 "generate/Seq" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: Ordinal n -> a).
-  generate n f = withSingI n $ Sized (Seq.fromFunction (fromSing' n) (f . toEnum))
+  generate n f = withSingI n $ Sized (Seq.fromFunction (P.fromIntegral $ toNatural n) (f . toEnum))
 #-}
-
-fromSing' :: HasOrdinal nat => Sing (n :: nat) -> Int
-fromSing' = P.fromIntegral . demote . Monomorphic
 
 --------------------------------------------------------------------------------
 --- Concatenation
@@ -484,14 +466,14 @@ infixl 5 |>
 -- | Append two lists.
 --
 -- Since 0.1.0.0
-append :: ListLike (f a) a => Sized f n a -> Sized f m a -> Sized f (n :+ m) a
+append :: ListLike (f a) a => Sized f n a -> Sized f m a -> Sized f (n + m) a
 append (Sized xs) (Sized ys) = Sized $ LL.append xs ys
 {-# INLINE append #-}
 
 -- | Infix version of 'append'.
 --
 -- Since 0.1.0.0
-(++) :: (ListLike (f a) a) => Sized f n a -> Sized f m a -> Sized f (n :+ m) a
+(++) :: (ListLike (f a) a) => Sized f n a -> Sized f m a -> Sized f (n + m) a
 (++) = append
 infixr 5 ++
 
@@ -499,7 +481,7 @@ infixr 5 ++
 --
 -- Since 0.1.0.0
 concat :: forall f f' m n a. (Functor f', Foldable f', ListLike (f a) a)
-       => Sized f' m (Sized f n a) -> Sized f (m :* n) a
+       => Sized f' m (Sized f n a) -> Sized f (m * n) a
 concat =  Sized . F.foldr LL.append LL.empty . P.fmap runSized
 {-# INLINE [2] concat #-}
 
@@ -639,7 +621,7 @@ reverse = Sized .  LL.reverse . runSized
 -- | Intersperces.
 --
 -- Since 0.1.0.0
-intersperse :: ListLike (f a) a => a -> Sized f n a -> Sized f ((FromInteger 2 :* n) :-. 1) a
+intersperse :: ListLike (f a) a => a -> Sized f n a -> Sized f ((FromInteger 2 TL.* n) -. 1) a
 intersperse a = Sized . LL.intersperse a . runSized
 {-# INLINE intersperse #-}
 
@@ -704,7 +686,7 @@ fromList :: forall f n a. (HasOrdinal nat, ListLike (f a) a)
          => Sing (n :: nat) -> [a] -> Maybe (Sized f n a)
 fromList Zero _ = Just $ Sized (LL.empty :: f a)
 fromList sn xs =
-  let len = P.fromIntegral $ demote $ Monomorphic sn
+  let len = P.fromIntegral $ toNatural sn
   in if P.length xs < len
      then Nothing
      else Just $ unsafeFromList sn $ P.take len xs
@@ -763,7 +745,7 @@ unsafeFromList' = withSing unsafeFromList
 fromListWithDefault :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
                     => Sing n -> a -> [a] -> Sized f n a
 fromListWithDefault sn def xs =
-  let len = demote' sn
+  let len = toNatural sn
   in Sized $ LL.fromList (L.genericTake len xs) `LL.append` LL.genericReplicate (len - L.genericLength xs) def
 {-# INLINABLE fromListWithDefault #-}
 
@@ -793,7 +775,7 @@ unsized = runSized
 toSized :: (HasOrdinal nat, ListLike (f a) a)
         => Sing (n :: nat) -> f a -> Maybe (Sized f n a)
 toSized sn xs =
-  let len = demote' sn
+  let len = toNatural sn
   in if LL.genericLength xs < len
      then Nothing
      else Just $ unsafeToSized sn $ LL.genericTake len xs
@@ -827,7 +809,7 @@ unsafeToSized' = withSing unsafeToSized
 toSizedWithDefault :: (HasOrdinal nat, ListLike (f a) a)
                    => Sing (n :: nat) -> a -> f a -> Sized f n a
 toSizedWithDefault sn def xs =
-  let len = P.fromIntegral $ demote (Monomorphic sn)
+  let len = P.fromIntegral $ toNatural sn
   in Sized $ LL.take len xs `LL.append` LL.replicate (len - LL.length xs) def
 {-# INLINABLE toSizedWithDefault #-}
 
@@ -862,7 +844,7 @@ data Partitioned f n a where
               -> Sized f (n :: TL.Nat) a
               -> Sing m
               -> Sized f (m :: TL.Nat) a
-              -> Partitioned f (n :+ m) a
+              -> Partitioned f (n + m) a
 
 -- | Take the initial segment as long as elements satisfys the predicate.
 --
@@ -1051,8 +1033,6 @@ sFindIndicesIF p = flip appEndo [] .
 {-# RULES
 "Foldable.sum/Vector"
   F.sum = V.sum . runSized
-"MonoTraversable.sum/Vector"
-  MT.osum = V.sum . runSized
   #-}
 
 -- | Returns the index of the given element in the list, if exists.
@@ -1074,9 +1054,9 @@ sElemIndex :: forall (n :: nat) f a.
            => a -> Sized f n a -> Maybe (Ordinal n)
 sElemIndex a (Sized xs) = do
   i <- LL.elemIndex a xs
-  case promote (P.fromIntegral i) of
-    Monomorphic sn ->
-      case sn %:< (sing :: Sing n) of
+  case fromNatural (P.fromIntegral i) of
+    SomeSing sn ->
+      case sn %< (sing :: Sing n) of
         STrue  -> Just (OLt sn)
         SFalse -> Nothing
 {-# INLINE sElemIndex #-}
@@ -1085,7 +1065,7 @@ sUnsafeElemIndex :: forall (n :: nat) f a.
                     (SingI n, ListLike (f a) a, Eq a, HasOrdinal nat)
                  => a -> Sized f n a -> Maybe (Ordinal n)
 sUnsafeElemIndex a (Sized xs) =
-  unsafeFromInt . P.fromIntegral <$> LL.elemIndex a xs
+  unsafeNaturalToOrd . P.fromIntegral <$> LL.elemIndex a xs
 
 -- | Returns all indices of the given element in the list.
 --
@@ -1099,7 +1079,7 @@ elemIndices a = LL.elemIndices a . runSized
 -- Since 0.1.0.0
 sElemIndices :: (HasOrdinal nat, SingI (n :: nat), ListLike (f a) a, Eq a)
              => a -> Sized f n a -> [Ordinal n]
-sElemIndices p = P.fmap (unsafeFromInt . P.fromIntegral) . elemIndices p
+sElemIndices p = P.fmap (unsafeNaturalToOrd . P.fromIntegral) . elemIndices p
 {-# INLINE sElemIndices #-}
 
 --------------------------------------------------------------------------------
@@ -1123,7 +1103,7 @@ sElemIndices p = P.fmap (unsafeFromInt . P.fromIntegral) . elemIndices p
 @
 slen :: ('SingI' n, 'ListLike (f a) a' f) => 'Sized' f n a -> 'Sing' n
 slen ('viewCons' -> 'NilCV')    = 'SZ'
-slen ('viewCons' -> _ '::-' as) = 'SS' (slen as)
+slen ('viewCons' -> _ ':-' as) = 'SS' (slen as)
 slen _                          = error "impossible"
 @
 
@@ -1137,7 +1117,7 @@ slen _                          = error "impossible"
 @
 slen :: ('SingI' n, 'ListLike (f a) a' f) => 'Sized' f n a -> 'Sing' n
 slen ('viewSnoc' -> 'NilSV')     = 'SZ'
-slen ('viewSnoc' -> as ':-::' _) = 'SS' (slen as)
+slen ('viewSnoc' -> as '-::' _) = 'SS' (slen as)
 @
 -}
 
@@ -1146,9 +1126,9 @@ slen ('viewSnoc' -> as ':-::' _) = 'SS' (slen as)
 -- Since 0.1.0.0
 data ConsView f n a where
   NilCV :: ConsView f (Zero nat) a
-  (::-) :: SingI n => a -> Sized f n a -> ConsView f (Succ n) a
+  (:-) :: SingI n => a -> Sized f n a -> ConsView f (Succ n) a
 
-infixr 5 ::-
+infixr 5 :-
 
 -- | Case analysis for the cons-side of sequence.
 --
@@ -1158,7 +1138,7 @@ viewCons :: forall f a (n :: nat). (HasOrdinal nat, ListLike (f a) a)
          -> ConsView f n a
 viewCons sz = case zeroOrSucc (sLength sz) of
   IsZero   -> NilCV
-  IsSucc n' -> withSingI n' $ P.uncurry (::-) (uncons' n' sz)
+  IsSucc n' -> withSingI n' $ P.uncurry (:-) (uncons' n' sz)
 
 -- | View of the left end of sequence (snoc-side).
 --
@@ -1186,7 +1166,7 @@ viewSnoc sz = case zeroOrSucc (sLength sz) of
 
 @
 nextToHead :: ('ListLike (f a) a' f, 'SingI' n) => 'Sized' f ('S' ('S' n)) a -> a
-nextToHead ('viewCons' -> _ '::-' ('viewCons' -> a '::-' _)) = a
+nextToHead ('viewCons' -> _ ':-' ('viewCons' -> a ':-' _)) = a
 @
 
    In such a case, with @PatternSynonyms@ extension we can write as follows:
@@ -1222,7 +1202,7 @@ pattern (:<) :: forall nat f (n :: nat) a.
              => forall (n1 :: nat).
                 (n ~ Succ n1, SingI n1)
              => a -> Sized f n1 a -> Sized f n a
-pattern a :< as <- (viewCons -> a ::- as) where
+pattern a :< as <- (viewCons -> a :- as) where
    a :< as = a <| as
 
 pattern NilL :: forall nat f (n :: nat) a.

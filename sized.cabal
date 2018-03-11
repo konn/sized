@@ -27,18 +27,18 @@ library
                      , Data.Sized.Flipped
   other-modules:       Data.Sized.Internal
   -- other-extensions:    
-  build-depends:       base             >= 4.7
-                     , type-natural     >= 0.7.1.2
-                     , mono-traversable >= 0.10
+  build-depends:       base                    >= 4.7
+                     , type-natural            >= 0.7.1.2
+                     , ghc-typelits-presburger >= 0.2.0.0
+                     , mono-traversable        >= 0.10
                      , ListLike
-                     , singletons       >= 2.0
+                     , singletons              >= 2.0
                      , deepseq
                      , hashable
                      , vector
                      , containers
                      , constraints
-                     , equational-reasoning == 0.*
-                     , monomorphic
+                     , equational-reasoning    >= 0.5
                      , lens >= 0.14
   -- hs-source-dirs:      
   default-language:    Haskell2010
