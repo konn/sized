@@ -1,11 +1,9 @@
 {-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable, DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable, EmptyDataDecls, ExplicitNamespaces         #-}
-{-# LANGUAGE FlexibleContexts, FlexibleInstances                           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
+{-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PolyKinds         #-}
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, StandaloneDeriving           #-}
-{-# LANGUAGE TemplateHaskell, TypeFamilies, TypeInType, TypeOperators      #-}
-{-# LANGUAGE UndecidableInstances                                          #-}
+{-# LANGUAGE TypeFamilies, TypeInType, TypeOperators, UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal
        (Sized(..),instLL, instFunctor, ListLikeF,
@@ -13,27 +11,27 @@ module Data.Sized.Internal
        ) where
 import           Control.DeepSeq         (NFData (..))
 import           Control.Lens.At         (Index, IxValue, Ixed (..))
-import           Control.Lens.Indexed    (FoldableWithIndex (..))
-import           Control.Lens.Indexed    (FunctorWithIndex (..))
-import           Control.Lens.Indexed    (TraversableWithIndex (..))
-import           Data.Constraint         ((:-) (..), (:=>) (..), Class (..))
-import           Data.Constraint         (Dict (..), trans, weaken1, weaken2)
-import           Data.Constraint         ((&&&), (\\))
+import           Control.Lens.Indexed    (FoldableWithIndex (..),
+                                          FunctorWithIndex (..),
+                                          TraversableWithIndex (..))
+import           Data.Constraint         ((:-) (..), (:=>) (..), Class (..),
+                                          Dict (..), trans, weaken1, weaken2,
+                                          (&&&), (\\))
 import           Data.Constraint.Forall  (Forall, inst)
 import           Data.Foldable           (Foldable)
 import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
 import           Data.ListLike           (ListLike)
-import           Data.MonoTraversable    (Element, MonoFoldable (..))
-import           Data.MonoTraversable    (MonoFunctor (..))
-import           Data.MonoTraversable    (MonoTraversable (..))
+import           Data.MonoTraversable    (Element, MonoFoldable (..),
+                                          MonoFunctor (..),
+                                          MonoTraversable (..))
 import           Data.Proxy              (Proxy (..))
 import qualified Data.Sequence           as Seq
 import           Data.Singletons.Prelude (SingI)
 import           Data.Traversable        (Traversable)
 import qualified Data.Type.Natural       as PN
-import           Data.Type.Ordinal       (HasOrdinal, Ordinal (..), ordToInt)
-import           Data.Type.Ordinal       (unsafeFromInt)
+import           Data.Type.Ordinal       (HasOrdinal, Ordinal (..),
+                                          ordToNatural, unsafeNaturalToOrd)
 import           Data.Typeable           (Typeable)
 import qualified Data.Vector             as V
 import qualified Data.Vector.Storable    as SV
@@ -108,12 +106,12 @@ instance (Integral (Index (f a)), Ixed (f a), HasOrdinal nat)
   {-# SPECIALISE instance Ixed (Sized Seq.Seq (n :: TL.Nat) a) #-}
   {-# SPECIALISE instance Ixed (Sized Seq.Seq (n :: PN.Nat) a) #-}
   {-# INLINE ix #-}
-  ix n f = fmap Sized . ix (fromIntegral $ ordToInt n) f . runSized
+  ix n f = fmap Sized . ix (fromIntegral $ ordToNatural n) f . runSized
 
 -- | Since 0.2.0.0
 instance (Integral i, FunctorWithIndex i f, HasOrdinal nat, SingI n)
       => FunctorWithIndex (Ordinal (n :: nat)) (Sized f n) where
-  imap f = Sized . imap (f . unsafeFromInt . fromIntegral) . runSized
+  imap f = Sized . imap (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE imap #-}
   {-# SPECIALISE instance TL.KnownNat n
                        => FunctorWithIndex (Ordinal n) (Sized [] (n :: TL.Nat)) #-}
@@ -131,19 +129,19 @@ instance (Integral i, FunctorWithIndex i f, HasOrdinal nat, SingI n)
 -- | Since 0.2.0.0
 instance (Integral i, FoldableWithIndex i f, HasOrdinal nat, SingI n)
       => FoldableWithIndex (Ordinal (n :: nat)) (Sized f n) where
-  ifoldMap f = ifoldMap (f . unsafeFromInt . fromIntegral) . runSized
+  ifoldMap f = ifoldMap (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE ifoldMap #-}
 
-  ifoldr f e = ifoldr (f . unsafeFromInt . fromIntegral) e . runSized
+  ifoldr f e = ifoldr (f . unsafeNaturalToOrd . fromIntegral) e . runSized
   {-# INLINE ifoldr #-}
 
-  ifoldl f e = ifoldl (f . unsafeFromInt . fromIntegral) e . runSized
+  ifoldl f e = ifoldl (f . unsafeNaturalToOrd . fromIntegral) e . runSized
   {-# INLINE ifoldl #-}
 
-  ifoldr' f e = ifoldr' (f . unsafeFromInt . fromIntegral) e . runSized
+  ifoldr' f e = ifoldr' (f . unsafeNaturalToOrd . fromIntegral) e . runSized
   {-# INLINE ifoldr' #-}
 
-  ifoldl' f e = ifoldl' (f . unsafeFromInt . fromIntegral) e . runSized
+  ifoldl' f e = ifoldl' (f . unsafeNaturalToOrd . fromIntegral) e . runSized
   {-# INLINE ifoldl' #-}
 
   {-# SPECIALISE instance TL.KnownNat n
@@ -162,7 +160,7 @@ instance (Integral i, FoldableWithIndex i f, HasOrdinal nat, SingI n)
 -- | Since 0.2.0.0
 instance (Integral i, TraversableWithIndex i f, HasOrdinal nat, SingI n)
       => TraversableWithIndex (Ordinal (n :: nat)) (Sized f n) where
-  itraverse f = fmap Sized . itraverse (f . unsafeFromInt . fromIntegral) . runSized
+  itraverse f = fmap Sized . itraverse (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE itraverse #-}
 
   {-# SPECIALISE instance TL.KnownNat n
