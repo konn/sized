@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                sized
-version:             0.2.1.1
+version:             0.3.0.0
 synopsis:            Sized sequence data-types
 description:         A wrapper to make length-parametrized data-type from ListLike data-types.
 license:             BSD3
@@ -27,19 +27,19 @@ library
                      , Data.Sized.Flipped
   other-modules:       Data.Sized.Internal
   -- other-extensions:    
-  build-depends:       base                    >= 4.7
+  build-depends:       base                    == 4.*
                      , type-natural            >= 0.7.1.2
                      , ghc-typelits-presburger >= 0.2.0.0
                      , mono-traversable        >= 0.10
-                     , ListLike
+                     , ListLike                >= 4.5
                      , singletons              >= 2.0
-                     , deepseq
-                     , hashable
-                     , vector
-                     , containers
-                     , constraints
+                     , deepseq                 >= 1.4
+                     , hashable                >= 1.2
+                     , vector                  >= 0.12
+                     , containers              >= 0.5
+                     , constraints             >= 0.9
                      , equational-reasoning    >= 0.5
-                     , lens >= 0.14
+                     , lens                    >= 0.14
   -- hs-source-dirs:      
   default-language:    Haskell2010
   ghc-options:         -O2 -Wall -Wno-redundant-constraints
