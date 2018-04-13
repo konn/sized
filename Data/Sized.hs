@@ -84,7 +84,7 @@ import           Data.ListLike                (ListLike)
 import qualified Data.ListLike                as LL
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
-import           Data.Singletons.Prelude      (SomeSing(..), PNum (..), POrd (..), SOrd (..))
+import           Data.Singletons.Prelude      (SomeSing(..), PNum (..), POrd (..))
 import           Data.Singletons.Prelude      (Sing (..), SingI (..))
 import           Data.Singletons.Prelude      (withSing, withSingI)
 import           Data.Singletons.Prelude.Enum (PEnum (..))
@@ -146,11 +146,18 @@ instance Eq (f a) => Eq (SomeSized f nat a) where
 length :: ListLike (f a) a => Sized f n a -> Int
 length = LL.length . runSized
 {-# INLINE [1] length #-}
+
+lengthTLZero :: Sized f 0 a -> Int
+lengthTLZero = P.const 0
+{-# INLINE lengthTLZero #-}
+
+lengthPeanoZero :: Sized f 'Peano.Z a -> Int
+lengthPeanoZero = P.const 0
+{-# INLINE lengthPeanoZero #-}
+
 {-# RULES
-"length/0" [~1] forall (xs :: Sized f 0 a).
-  length xs = 0
-"length/Z" [~1] forall (xs :: Sized f 'Peano.Z a).
-  length xs = 0
+"length/0" [~1] length = lengthTLZero
+"length/Z" [~1] length = lengthPeanoZero
   #-}
 
 -- | @Sing@ version of 'length'.
@@ -168,13 +175,31 @@ sLength (Sized xs) =
 -- Since 0.1.0.0
 null :: ListLike (f a) a => Sized f n a -> Bool
 null = LL.null . runSized
-{-# INLINE CONLIKE [1] null #-}
-{-# RULES
-"null/0" [~1] forall (xs :: Sized f 0 a).
-  null xs = True
+{-# INLINE CONLIKE [2] null #-}
 
-"null/Z" [~1] forall (xs :: Sized f 'Peano.Z a).
-  null xs = True
+nullTL0 :: Sized f 0 a -> Bool
+nullTL0 = P.const True
+{-# INLINE nullTL0 #-}
+
+nullPeano0 :: Sized f 'Peano.Z a -> Bool
+nullPeano0 = P.const True
+{-# INLINE nullPeano0 #-}
+
+nullPeanoSucc :: Sized f (S n) a -> Bool
+nullPeanoSucc = P.const False
+{-# INLINE nullPeanoSucc #-}
+
+nullTLSucc :: Sized f (n + 1) a -> Bool
+nullTLSucc = P.const False
+{-# INLINE nullTLSucc #-}
+
+{-# RULES
+"null/0"  [~2] null = nullTL0
+"null/0"  [~1] forall (vec :: (1 TL.<= n) => Sized f n a).
+  null vec = False
+"null/0"  [~2] null = nullTLSucc
+"null/Z"  [~2] null = nullPeano0
+"null/Sn" [~2] null = nullPeanoSucc
 #-}
 
 --------------------------------------------------------------------------------
@@ -245,15 +270,19 @@ last = LL.last . runSized
 -- Since 0.1.0.0
 uncons :: ListLike (f a) b => Sized f (Succ n) a -> (b, Sized f n a)
 uncons = ((,) <$> LL.head <*> Sized . LL.tail) . runSized
+
+unconsList :: Sized [] (Succ n) a -> (a, Sized [] n a)
+unconsList (Sized ~(x : xs)) = (x, Sized xs)
+{-# INLINE unconsList #-}
+
+unconsSeq :: Sized Seq.Seq (Succ n) a -> (a, Sized Seq.Seq n a)
+unconsSeq (Sized ~(x Seq.:<| xs)) = (x, Sized xs)
+{-# INLINE unconsSeq #-}
+
 {-# INLINE [1] uncons #-}
 {-# RULES
-"uncons/[]" [~1] forall (x :: a) (xs:: [a]).
-  uncons (Sized (x : xs)) = (x, Sized xs)
-"uncons/Seq" [~1] forall (xs:: Seq.Seq a).
-  uncons (Sized xs) =
-    case Seq.viewl xs of { (x Seq.:< ys) -> (x, Sized ys)
-                         ; _ -> P.error "Empty seq with non-zero index!"
-                         }
+"uncons/[]"  [~1] uncons = unconsList
+"uncons/Seq" [~1] uncons = unconsSeq
   #-}
 
 uncons' :: ListLike (f a) b => proxy n -> Sized f (Succ n) a -> (b, Sized f n a)
@@ -268,13 +297,20 @@ uncons' _  = uncons
 unsnoc :: ListLike (f a) b => Sized f (Succ n) a -> (Sized f n a, b)
 unsnoc = ((,) <$> Sized . LL.init <*> LL.last) . runSized
 {-# NOINLINE [1] unsnoc #-}
+
+unsnocSeq :: Sized Seq.Seq (Succ n) a -> (Sized Seq.Seq n a, a)
+unsnocSeq (Sized ~(xs Seq.:|> x)) = (Sized xs, x)
+{-# INLINE unsnocSeq #-}
+
+unsnocVector :: Sized V.Vector (Succ n) a -> (Sized V.Vector n a, a)
+unsnocVector (Sized v) = (Sized (V.init v), V.last v)
+{-# INLINE unsnocVector #-}
+
 {-# RULES
-"unsnoc/Seq" [~1] forall (xs:: Seq.Seq a).
-  unsnoc (Sized xs) =
-    case Seq.viewr xs of { (ys Seq.:> x) -> (Sized ys, x)
-                         ; _ -> P.error "Empty seq with non-zero index!"
-                         }
-  #-}
+"unsnoc/Seq"     [~1] unsnoc = unsnocSeq
+"unsnoc/Vector"  [~1] unsnoc = unsnocVector
+ #-}
+
 
 unsnoc' :: ListLike (f a) b => proxy n -> Sized f (Succ n) a -> (Sized f n a, b)
 unsnoc' _  = unsnoc
@@ -415,18 +451,34 @@ generate :: forall (nat :: Type) (n :: nat) (a :: Type) f.
          => Sing n -> (Ordinal n -> a) -> Sized f n a
 generate n f = unsafeFromList n [f i | i <- enumOrdinal n ]
 {-# INLINE [1] generate #-}
+
+genVector :: forall nat (n :: nat) a.
+            (HasOrdinal nat)
+          => Sing n -> (Ordinal n -> a) -> Sized V.Vector n a
+genVector n f = withSingI n $ Sized $ V.generate (P.fromIntegral $ toNatural n) (f . toEnum)
+{-# INLINE genVector #-}
+
+genSVector :: forall nat (n :: nat) a.
+             (HasOrdinal nat, SV.Storable a)
+           => Sing n -> (Ordinal n -> a) -> Sized SV.Vector n a
+genSVector n f = withSingI n $ Sized $ SV.generate (P.fromIntegral $ toNatural n) (f . toEnum)
+{-# INLINE genSVector #-}
+
+genSeq :: forall nat (n :: nat) a.
+          (HasOrdinal nat)
+       => Sing n -> (Ordinal n -> a) -> Sized Seq.Seq n a
+genSeq n f = withSingI n $ Sized $ Seq.fromFunction (P.fromIntegral $ toNatural n)  (f . toEnum)
+{-# INLINE genSeq #-}
+
 {-# RULES
-"generate/Vector" [~1] forall (n :: (HasOrdinal nat) => Sing (n :: nat)) (f :: Ordinal n -> a).
-  generate (n :: Sing (n :: (nat :: Type))) f = withSingI n $ Sized (V.generate (P.fromIntegral $ toNatural n) (f . toEnum))
+"generate/Vector"  [~1] generate = genVector
 "generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: SV.Storable a => Ordinal n -> a).
-  generate n f = withSingI n $ Sized (SV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
-"generate/SVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
+  generate n f = genSVector n f
+"generate/UVector" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
                        (f :: UV.Unbox a => Ordinal n -> a).
   generate n f = withSingI n $ Sized (UV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
-"generate/Seq" [~1] forall (n :: HasOrdinal nat => Sing (n :: nat))
-                       (f :: Ordinal n -> a).
-  generate n f = withSingI n $ Sized (Seq.fromFunction (P.fromIntegral $ toNatural n) (f . toEnum))
+"generate/Seq" [~1] generate = genSeq
 #-}
 
 --------------------------------------------------------------------------------
@@ -486,11 +538,11 @@ concat =  Sized . F.foldr LL.append LL.empty . P.fmap runSized
 {-# INLINE [2] concat #-}
 
 {-# RULES
-"concat/list-list" [~1] forall (xss :: [Sized [] n a]).
-  concat (Sized xss) = Sized (L.concatMap runSized xss)
+"concat/list-list" [~1]
+  concat = Sized . L.concatMap runSized . runSized
 "concat/list-list" [~2] forall (xss :: (ListLike (f a) a, ListLike (f (Sized f n a)) (Sized f n a))
-                                   => f (Sized f n a)).
-  concat (Sized xss) = Sized (LL.concatMap runSized xss)
+                                   => Sized f m (Sized f n a)).
+  concat xss = Sized (LL.concatMap runSized (runSized xss))
   #-}
 
 --------------------------------------------------------------------------------
@@ -505,15 +557,15 @@ zip :: (ListLike (f a) a, ListLike (f b) b, ListLike (f (a, b)) (a, b))
 zip (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
 {-# INLINE [1] zip #-}
 {-# RULES
-"zip/Seq" [~1] forall xs ys.
-  zip (Sized xs) (Sized ys) = Sized (Seq.zip xs ys)
-"zip/List" [~1] forall xs ys.
-  zip (Sized xs) (Sized ys) = Sized (P.zip xs ys)
-"zip/Vector" [~1] forall xs ys.
-  zip (Sized xs) (Sized ys) = Sized (V.zip xs ys)
+"zip/Seq" [~1]
+  zip = (Sized .) . (. runSized) . Seq.zip . runSized
+"zip/List" [~1]
+  zip = (Sized .) . (. runSized) . P.zip . runSized
+"zip/Vector" [~1]
+  zip = (Sized .) . (. runSized) . V.zip . runSized
 "zip/UVector" [~1]
-  forall (xs :: UV.Unbox a => UV.Vector a) (ys :: UV.Unbox b => UV.Vector b).
-  zip (Sized xs) (Sized ys) = Sized (UV.zip xs ys)
+  forall (xs :: UV.Unbox a => Sized UV.Vector n a) (ys :: UV.Unbox b => Sized UV.Vector m b).
+  zip xs ys = Sized (UV.zip (runSized xs) (runSized ys))
   #-}
 
 -- | 'zip' for the sequences of the same length.
@@ -524,15 +576,15 @@ zipSame :: (ListLike (f a) a, ListLike (f b) b, ListLike (f (a, b)) (a, b))
 zipSame (Sized xs) (Sized ys) = Sized $ LL.zip xs ys
 {-# INLINE [1] zipSame #-}
 {-# RULES
-"zipSame/Seq" [~1] forall xs ys.
-  zipSame (Sized xs) (Sized ys) = Sized (Seq.zip xs ys)
-"zipSame/List" [~1] forall xs ys.
-  zipSame (Sized xs) (Sized ys) = Sized (P.zip xs ys)
-"zipSame/Vector" [~1] forall xs ys.
-  zipSame (Sized xs) (Sized ys) = Sized (V.zip xs ys)
+"zipSame/Seq" [~1]
+  zipSame = (Sized .) . (. runSized) . Seq.zip . runSized
+"zipSame/List" [~1]
+  zipSame = (Sized .) . (. runSized) . P.zip . runSized
+"zipSame/Vector" [~1]
+  zipSame = (Sized .) . (. runSized) . V.zip . runSized
 "zipSame/UVector" [~1]
-  forall (xs :: UV.Unbox a => UV.Vector a) (ys :: UV.Unbox b => UV.Vector b).
-  zipSame (Sized xs) (Sized ys) = Sized (UV.zip xs ys)
+  forall (xs :: UV.Unbox a => Sized UV.Vector n a) (ys :: UV.Unbox b => Sized UV.Vector n b).
+  zipSame xs ys = Sized (UV.zip (runSized xs) (runSized ys))
   #-}
 
 -- | Zipping two sequences with funtion. Length is adjusted to shorter one.
@@ -544,20 +596,18 @@ zipWith f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
 {-# INLINE [1] zipWith #-}
 
 {-# RULES
-"zipWith/Seq" [~1] forall f xs ys.
-  zipWith f (Sized xs) (Sized ys) = Sized (Seq.zipWith f xs ys)
-"zipWith/List" [~1] forall f xs ys.
-  zipWith f (Sized xs) (Sized ys) = Sized (P.zipWith f xs ys)
-"zipWith/Vector" [~1] forall f xs ys.
-  zipWith f (Sized xs) (Sized ys) = Sized (V.zipWith f xs ys)
+"zipWith/Seq" [~1] forall f.
+  zipWith f = (Sized .) . (. runSized) . Seq.zipWith f . runSized
+"zipWith/List" [~1] forall f.
+  zipWith f = (Sized .) . (. runSized) . P.zipWith f . runSized
+"zipWith/Vector" [~1] forall f.
+  zipWith f = (Sized .) . (. runSized) . V.zipWith f . runSized
 "zipWith/UVector" [~1]
-  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c)
-    xs ys.
-  zipWith f (Sized xs) (Sized ys) = Sized (UV.zipWith f xs ys)
+  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c).
+  zipWith f = (Sized .) . (. runSized) . UV.zipWith f . runSized
 "zipWith/MVector" [~1]
-  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c)
-    xs ys.
-  zipWith f (Sized xs) (Sized ys) = Sized (SV.zipWith f xs ys)
+  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c).
+  zipWith f = (Sized .) . (. runSized) . SV.zipWith f . runSized
   #-}
 
 -- | 'zipWith' for the sequences of the same length.
@@ -569,20 +619,18 @@ zipWithSame f (Sized xs) (Sized ys) = Sized $ LL.zipWith f xs ys
 {-# INLINE [1] zipWithSame #-}
 
 {-# RULES
-"zipWithSame/Seq" [~1] forall f xs ys.
-  zipWithSame f (Sized xs) (Sized ys) = Sized (Seq.zipWith f xs ys)
-"zipWithSame/List" [~1] forall f xs ys.
-  zipWithSame f (Sized xs) (Sized ys) = Sized (P.zipWith f xs ys)
-"zipWithSame/Vector" [~1] forall f xs ys.
-  zipWithSame f (Sized xs) (Sized ys) = Sized (V.zipWith f xs ys)
+"zipWithSame/Seq" [~1] forall f.
+  zipWithSame f = (Sized .) . (. runSized) . Seq.zipWith f . runSized
+"zipWithSame/List" [~1] forall f.
+  zipWithSame f = (Sized .) . (. runSized) . P.zipWith f . runSized
+"zipWithSame/Vector" [~1] forall f.
+  zipWithSame f = (Sized .) . (. runSized) . V.zipWith f . runSized
 "zipWithSame/UVector" [~1]
-  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c)
-    xs ys.
-  zipWithSame f (Sized xs) (Sized ys) = Sized (UV.zipWith f xs ys)
+  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c).
+  zipWithSame f = (Sized .) . (. runSized) . UV.zipWith f . runSized
 "zipWithSame/MVector" [~1]
-  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c)
-    xs ys.
-  zipWithSame f (Sized xs) (Sized ys) = Sized (SV.zipWith f xs ys)
+  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c).
+  zipWithSame f = (Sized .) . (. runSized) . Seq.zipWith f . runSized
   #-}
 
 -- | Unzipping the sequence of tuples.
@@ -673,8 +721,8 @@ toList = LL.toList . runSized
 {-# INLINE [2] toList #-}
 
 {-# RULES
-"toList/" forall (xs :: Sized [] a n).
-  Data.Sized.toList xs = runSized xs
+"toList/List"
+  Data.Sized.toList = runSized
   #-}
 
 -- | If the given list is shorter than @n@, then returns @Nothing@
@@ -707,12 +755,12 @@ unsafeFromList :: forall (nat :: Type) f (n :: nat) a. ListLike (f a) a => Sing 
 unsafeFromList _ xs = Sized $ LL.fromList xs
 {-# INLINE [1] unsafeFromList #-}
 {-# RULES
-"unsafeFromList/List" [~1] forall s xs.
-  unsafeFromList s  xs = Sized xs
-"unsafeFromList/Vector" [~1] forall s (xs :: [a]).
-  unsafeFromList s  xs = Sized (V.fromList xs)
-"unsafeFromList/Seq" [~1] forall s (xs :: [a]).
-  unsafeFromList s  xs = Sized (Seq.fromList xs)
+"unsafeFromList/List" [~1]
+  unsafeFromList = P.const Sized
+"unsafeFromList/Vector" [~1]
+  unsafeFromList = P.const (Sized . V.fromList)
+"unsafeFromList/Seq" [~1]
+  unsafeFromList = P.const (Sized . Seq.fromList)
 "unsafeFromList/SVector" [~1] forall s (xs :: SV.Storable a => [a]).
   unsafeFromList s  xs = Sized (SV.fromList xs)
 "unsafeFromList/UVector" [~1] forall s (xs :: UV.Unbox a => [a]).
@@ -726,12 +774,12 @@ unsafeFromList' :: (SingI (n :: TL.Nat), ListLike (f a) a) => [a] -> Sized f n a
 unsafeFromList' = withSing unsafeFromList
 {-# INLINE [1] unsafeFromList' #-}
 {-# RULES
-"unsafeFromList'/List" [~1] forall xs.
-  unsafeFromList'  xs = Sized xs
-"unsafeFromList'/Vector" [~1] forall (xs :: [a]).
-  unsafeFromList'  xs = Sized (V.fromList xs)
-"unsafeFromList'/Seq" [~1] forall (xs :: [a]).
-  unsafeFromList'  xs = Sized (Seq.fromList xs)
+"unsafeFromList'/List" [~1]
+  unsafeFromList' = Sized
+"unsafeFromList'/Vector" [~1]
+  unsafeFromList' = Sized . V.fromList
+"unsafeFromList'/Seq" [~1]
+  unsafeFromList' = Sized . Seq.fromList
 "unsafeFromList'/SVector" [~1] forall (xs :: SV.Storable a => [a]).
   unsafeFromList'  xs = Sized (SV.fromList xs)
 "unsafeFromList'/UVector" [~1] forall (xs :: UV.Unbox a => [a]).
@@ -931,14 +979,14 @@ find :: Foldable f => (a -> Bool) -> Sized f n a -> Maybe a
 find p = F.find p
 {-# INLINE[1] find #-}
 {-# RULES
-"find/List" [~1] forall p (xs :: [a]).
-  find p (Sized xs) = L.find p xs
-"find/Vector" [~1] forall p xs.
-  find p (Sized xs) = V.find p xs
-"find/Storable Vector" [~1] forall p (xs :: SV.Storable a => SV.Vector a).
-  find p (Sized xs) = SV.find p xs
-"find/Unboxed Vector" [~1] forall p (xs :: UV.Unbox a => UV.Vector a).
-  find p (Sized xs) = UV.find p xs
+"find/List" [~1] forall p.
+  find p = L.find p . runSized
+"find/Vector" [~1] forall p.
+  find p = V.find p . runSized
+"find/Storable Vector" [~1] forall (p :: SV.Storable a => a -> Bool).
+  find p = SV.find p . runSized
+"find/Unboxed Vector" [~1] forall (p :: UV.Unbox a => a -> Bool).
+  find p = UV.find p . runSized
   #-}
 
 -- | @'Foldable'@ version of @'find'@.
@@ -947,8 +995,8 @@ findF p = getFirst. F.foldMap (\a -> if p a then First (Just a) else First Nothi
 {-# INLINE [1] findF #-}
 {-# SPECIALISE [0] findF :: (a -> Bool) -> Sized Seq.Seq n a -> Maybe a #-}
 {-# RULES
-"findF/list" [~1] forall p.
-  findF p = L.find p
+"findF/list"   [~1] findF = (. runSized) . L.find
+"findF/Vector" [~1] findF = (. runSized) . V.find
   #-}
 
 -- | @'findIndex' p xs@ find the element satisfying @p@ and returns its index if exists.
@@ -982,12 +1030,12 @@ sFindIndexIF :: (FoldableWithIndex i f, P.Integral i, HasOrdinal nat, SingI n)
              => (a -> Bool) -> Sized f (n :: nat) a -> Maybe (Ordinal n)
 sFindIndexIF p = P.fmap fst . ifind (P.const p)
 {-# INLINE [1] sFindIndexIF #-}
--- {-# RULES
--- "sFindIndexIF/list" [~1] forall p .
---   sFindIndexIF p = P.fmap toEnum . L.findIndex p . runSized
--- "sFindIndexIF/vector" [~1] forall p.
---   sFindIndexIF p = P.fmap toEnum . V.findIndex p . runSized
---   #-}
+{-# RULES
+"sFindIndexIF/list" [~1] forall p .
+  sFindIndexIF p = P.fmap toEnum . L.findIndex p . runSized
+"sFindIndexIF/vector" [~1] forall p.
+  sFindIndexIF p = P.fmap toEnum . V.findIndex p . runSized
+  #-}
 
 -- | @'findIndices' p xs@ find all elements satisfying @p@ and returns their indices.
 --
@@ -1023,12 +1071,12 @@ sFindIndicesIF p = flip appEndo [] .
                    ifoldMap (\i x -> if p x then Endo (P.toEnum (P.fromIntegral i):) else Endo P.id) .
                    runSized
 {-# INLINE [1] sFindIndicesIF #-}
--- {-# RULES
--- "sFindIndicesIF/list" [~1] forall p.
---   sFindIndicesIF p = P.map toEnum . L.findIndices p . runSized
--- "sFindIndicesIF/vector" [~1] forall p.
---   sFindIndicesIF p = V.toList . V.map toEnum . V.findIndices p . runSized
---   #-}
+{-# RULES
+"sFindIndicesIF/list" [~1] forall p.
+  sFindIndicesIF p = P.map toEnum . L.findIndices p . runSized
+"sFindIndicesIF/vector" [~1] forall p.
+  sFindIndicesIF p = V.toList . V.map toEnum . V.findIndices p . runSized
+  #-}
 
 {-# RULES
 "Foldable.sum/Vector"

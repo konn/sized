@@ -126,8 +126,8 @@ instance (Integral i, FunctorWithIndex i f, HasOrdinal nat, SingI n)
   {-# SPECIALISE instance SingI n
                        => FunctorWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat)) #-}
 
--- | Since 0.2.0.0
-instance (Integral i, FoldableWithIndex i f, HasOrdinal nat, SingI n)
+-- | Since 0.4.0.0
+instance {-# OVERLAPPABLE #-}  (Integral i, FoldableWithIndex i f, HasOrdinal nat, SingI n)
       => FoldableWithIndex (Ordinal (n :: nat)) (Sized f n) where
   ifoldMap f = ifoldMap (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE ifoldMap #-}
