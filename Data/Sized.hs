@@ -276,7 +276,7 @@ unconsList (Sized ~(x : xs)) = (x, Sized xs)
 {-# INLINE unconsList #-}
 
 unconsSeq :: Sized Seq.Seq (Succ n) a -> (a, Sized Seq.Seq n a)
-unconsSeq (Sized ~(x Seq.:<| xs)) = (x, Sized xs)
+unconsSeq (Sized ~(Seq.viewl -> x Seq.:< xs)) = (x, Sized xs)
 {-# INLINE unconsSeq #-}
 
 {-# INLINE [1] uncons #-}
@@ -299,7 +299,7 @@ unsnoc = ((,) <$> Sized . LL.init <*> LL.last) . runSized
 {-# NOINLINE [1] unsnoc #-}
 
 unsnocSeq :: Sized Seq.Seq (Succ n) a -> (Sized Seq.Seq n a, a)
-unsnocSeq (Sized ~(xs Seq.:|> x)) = (Sized xs, x)
+unsnocSeq (Sized ~(Seq.viewr -> xs Seq.:> x)) = (Sized xs, x)
 {-# INLINE unsnocSeq #-}
 
 unsnocVector :: Sized V.Vector (Succ n) a -> (Sized V.Vector n a, a)
