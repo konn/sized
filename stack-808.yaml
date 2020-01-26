@@ -1,4 +1,4 @@
-resolver: lts-12.2
+resolver: nightly-2020-01-25
 
 flags: {}
 packages:
@@ -6,9 +6,9 @@ packages:
 
 extra-deps: 
 - equational-reasoning-0.6.0.1
-- github: konn/ghc-typelits-presburger.git
-  commit: 755172b44fb6d61d08d8c40dee12cc0b195eaad5
+- git: git@github.com:konn/ghc-typelits-presburger
+  commit: 3fde03821214f0265da7e7c599f4377c1e5c60c7
   subdirs:
-  - ghc-typelits-presburger/
+  - ghc-typelits-presburger
 - git: git@github.com:konn/type-natural.git
   commit: acb8aee6aefc4c50b4e88d2b02695d31d3b38c9b

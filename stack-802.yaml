@@ -6,7 +6,7 @@ packages:
 
 extra-deps:
 - equational-reasoning-0.5.1.0
-- ghc-tcplugins-extra-0.2.4
-- ghc-typelits-natnormalise-0.5.9
+- ghc-tcplugins-extra-0.2.5
+- ghc-typelits-natnormalise-0.6
 - ghc-typelits-presburger-0.2.0.0
-- type-natural-0.8.0.0
+- type-natural-0.8.1.0

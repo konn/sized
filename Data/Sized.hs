@@ -145,7 +145,7 @@ instance Eq (f a) => Eq (SomeSized f nat a) where
 -- Since 0.1.0.0
 length :: ListLike (f a) a => Sized f n a -> Int
 length = LL.length . runSized
-{-# INLINE [1] length #-}
+{-# INLINE CONLIKE [1] length #-}
 
 lengthTLZero :: Sized f 0 a -> Int
 lengthTLZero = P.const 0
