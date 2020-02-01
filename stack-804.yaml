@@ -6,9 +6,5 @@ packages:
 
 extra-deps: 
 - equational-reasoning-0.6.0.1
-- github: konn/ghc-typelits-presburger.git
-  commit: 755172b44fb6d61d08d8c40dee12cc0b195eaad5
-  subdirs:
-  - ghc-typelits-presburger/
-- git: git@github.com:konn/type-natural.git
-  commit: acb8aee6aefc4c50b4e88d2b02695d31d3b38c9b
+- ghc-typelits-presburger-0.3.0.0
+- type-natural-0.8.3.1
