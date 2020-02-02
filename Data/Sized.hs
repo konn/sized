@@ -84,6 +84,7 @@ import           Data.ListLike                (ListLike)
 import qualified Data.ListLike                as LL
 import           Data.Monoid                  (Endo (..), First (..))
 import qualified Data.Sequence                as Seq
+import           Data.Singletons.Prelude.Bool 
 import           Data.Singletons.Prelude      (SomeSing(..), PNum (..), POrd (..))
 import           Data.Singletons.Prelude      (Sing (..), SingI (..))
 import           Data.Singletons.Prelude      (withSing, withSingI)
