@@ -1,18 +1,21 @@
-{-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable, DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable, EmptyDataDecls, ExplicitNamespaces         #-}
-{-# LANGUAGE FlexibleContexts, FlexibleInstances                           #-}
+{-# LANGUAGE CPP, ConstraintKinds, DataKinds, DeriveDataTypeable           #-}
+{-# LANGUAGE DeriveFunctor, DeriveTraversable, EmptyDataDecls              #-}
+{-# LANGUAGE ExplicitNamespaces, FlexibleContexts, FlexibleInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PatternSynonyms   #-}
 {-# LANGUAGE PolyKinds, RankNTypes, ScopedTypeVariables                    #-}
 {-# LANGUAGE StandaloneDeriving, TemplateHaskell, TypeFamilies, TypeInType #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, ViewPatterns             #-}
+#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE NoStarIsType #-}
+#endif
 module Data.Sized.Flipped (Flipped(..),
                            pattern (:<), pattern NilL,
                            pattern (:>), pattern NilR) where
 import qualified Data.Sized          as Orig
 import           Data.Sized.Internal
 
-import           Control.DeepSeq              (NFData(..))
+import           Control.DeepSeq              (NFData (..))
 import           Control.Lens.At              (Index, IxValue, Ixed (..))
 import           Control.Lens.TH              (makeWrapped)
 import           Control.Lens.Wrapped         (_Wrapped)

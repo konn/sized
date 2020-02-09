@@ -1,6 +1,9 @@
-{-# LANGUAGE DataKinds, GADTs, KindSignatures, MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeInType      #-}
-{-# LANGUAGE ViewPatterns                                            #-}
+{-# LANGUAGE CPP, DataKinds, GADTs, KindSignatures, MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeInType           #-}
+{-# LANGUAGE ViewPatterns                                                 #-}
+#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE NoStarIsType #-}
+#endif
 -- | This module exports @'S.Sized'@ type specialized to
 --   GHC's built-in type numeral @'TL.Nat'@.
 module Data.Sized.Builtin

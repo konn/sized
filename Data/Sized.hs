@@ -1,4 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes, ConstraintKinds, DataKinds               #-}
+{-# LANGUAGE AllowAmbiguousTypes, CPP, ConstraintKinds, DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveFoldable, DeriveFunctor             #-}
 {-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving          #-}
@@ -7,6 +7,10 @@
 {-# LANGUAGE PatternSynonyms, PolyKinds, ScopedTypeVariables, RankNTypes   #-}
 {-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies            #-}
 {-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
+#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE NoStarIsType #-}
+#endif
+
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
 -- | This module provides the functionality to make length-parametrized types

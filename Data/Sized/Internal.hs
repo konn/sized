@@ -1,9 +1,13 @@
-{-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable, DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures #-}
+{-# LANGUAGE CPP, ConstraintKinds, DataKinds, DeriveDataTypeable           #-}
+{-# LANGUAGE DeriveFunctor, DeriveTraversable, ExplicitNamespaces          #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances                           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PolyKinds         #-}
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, StandaloneDeriving           #-}
 {-# LANGUAGE TypeFamilies, TypeInType, TypeOperators, UndecidableInstances #-}
+#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE NoStarIsType #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal
        (Sized(..),instLL, instFunctor, ListLikeF,
