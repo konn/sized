@@ -167,8 +167,8 @@ lengthPeanoZero = P.const 0
 
 -- | @Sing@ version of 'length'.
 --
--- Since 0.2.0.0
-sLength :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+-- Since 0.5.0.0 (type changed)
+sLength :: forall f nat (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
         => Sized f n a -> Sing n
 sLength (Sized xs) =
   case fromNatural (P.fromIntegral $ LL.length xs) of
@@ -413,8 +413,8 @@ splitAtMost n (Sized xs) =
 
 -- | Empty sequence.
 --
--- Since 0.1.0.0
-empty :: forall f a. (HasOrdinal nat, ListLike (f a) a) => Sized f (Zero nat :: nat) a
+-- Since 0.5.0.0 (type changed)
+empty :: forall f nat a. (HasOrdinal nat, ListLike (f a) a) => Sized f (Zero nat :: nat) a
 empty = Sized LL.empty
 {-# INLINE empty #-}
 
@@ -439,7 +439,7 @@ toSomeSized = \xs ->
 -- | Replicates the same value.
 --
 -- Since 0.1.0.0
-replicate :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+replicate :: forall f nat (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
           => Sing n -> a -> Sized f n a
 replicate sn a = Sized $ LL.genericReplicate (toNatural sn) a
 {-# INLINE replicate #-}
@@ -734,9 +734,9 @@ toList = LL.toList . runSized
 --   Otherwise returns @Sized f n a@ consisting of initial @n@ element
 --   of given list.
 --
--- Since 0.1.0.0
-fromList :: forall f n a. (HasOrdinal nat, ListLike (f a) a)
-         => Sing (n :: nat) -> [a] -> Maybe (Sized f n a)
+--   Since 0.5.0.0 (type changed)
+fromList :: forall f nat (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+         => Sing n -> [a] -> Maybe (Sized f n a)
 fromList Zero _ = Just $ Sized (LL.empty :: f a)
 fromList sn xs =
   let len = P.fromIntegral $ toNatural sn
@@ -794,8 +794,8 @@ unsafeFromList' = withSing unsafeFromList
 
 -- | Construct a @Sized f n a@ by padding default value if the given list is short.
 --
--- Since 0.1.0.0
-fromListWithDefault :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+--   Since 0.5.0.0 (type changed)
+fromListWithDefault :: forall f nat (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
                     => Sing n -> a -> [a] -> Sized f n a
 fromListWithDefault sn def xs =
   let len = toNatural sn
@@ -1101,8 +1101,8 @@ elemIndex a (Sized xs) = LL.elemIndex a xs
 --   then @'sUnsafeElemIndex'@ is much faster and
 --   also safe for most cases.
 --
---   Since 0.1.0.0
-sElemIndex :: forall (n :: nat) f a.
+--   Since 0.5.0.0 (type changed)
+sElemIndex :: forall nat (n :: nat) f a.
               (SingI n, ListLike (f a) a, Eq a, HasOrdinal nat)
            => a -> Sized f n a -> Maybe (Ordinal n)
 sElemIndex a (Sized xs) = do
@@ -1114,7 +1114,8 @@ sElemIndex a (Sized xs) = do
         SFalse -> Nothing
 {-# INLINE sElemIndex #-}
 
-sUnsafeElemIndex :: forall (n :: nat) f a.
+-- | Since 0.5.0.0 (type changed)
+sUnsafeElemIndex :: forall nat (n :: nat) f a.
                     (SingI n, ListLike (f a) a, Eq a, HasOrdinal nat)
                  => a -> Sized f n a -> Maybe (Ordinal n)
 sUnsafeElemIndex a (Sized xs) =
@@ -1185,8 +1186,8 @@ infixr 5 :-
 
 -- | Case analysis for the cons-side of sequence.
 --
--- Since 0.1.0.0
-viewCons :: forall f a (n :: nat). (HasOrdinal nat, ListLike (f a) a)
+-- Since 0.5.0.0 (type changed)
+viewCons :: forall f a nat (n :: nat). (HasOrdinal nat, ListLike (f a) a)
          => Sized f n a
          -> ConsView f n a
 viewCons sz = case zeroOrSucc (sLength sz) of
@@ -1203,8 +1204,8 @@ infixl 5 :-::
 
 -- | Case analysis for the snoc-side of sequence.
 --
--- Since 0.1.0.0
-viewSnoc :: forall f (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
+-- Since 0.5.0.0 (type changed)
+viewSnoc :: forall f nat (n :: nat) a. (HasOrdinal nat, ListLike (f a) a)
          => Sized f n a
          -> SnocView f n a
 viewSnoc sz = case zeroOrSucc (sLength sz) of
