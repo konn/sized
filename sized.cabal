@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                sized
-version:             0.5.0.0
+version:             0.6.0.0
 synopsis:            Sized sequence data-types
 description:         A wrapper to make length-parametrized data-type from ListLike data-types.
 license:             BSD3

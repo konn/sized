@@ -76,13 +76,13 @@ instance {-# OVERLAPPABLE #-} (MonoTraversable (f a))
   otraverse f = fmap Sized . otraverse f . runSized
   omapM f = fmap Sized . omapM f. runSized
 
--- | Since 0.2.0.0
-instance {-# OVERLAPS #-} SV.Storable a => MonoTraversable (Sized SV.Vector n a) where
+-- | Since 0.6.0.0
+instance {-# OVERLAPPING #-} SV.Storable a => MonoTraversable (Sized SV.Vector n a) where
   otraverse f = fmap Sized . otraverse f . runSized
   omapM f = fmap Sized . omapM f . runSized
 
--- | Since 0.2.0.0
-instance {-# OVERLAPS #-} UV.Unbox a => MonoTraversable (Sized UV.Vector n a) where
+-- | Since 0.6.0.0
+instance {-# OVERLAPPING #-} UV.Unbox a => MonoTraversable (Sized UV.Vector n a) where
   otraverse f = fmap Sized . otraverse f . runSized
   omapM f = fmap Sized . omapM f . runSized
 
