@@ -1,0 +1,6 @@
+cradle:
+  stack:
+    - path: "src"
+      component: "sized:lib"
+    - path: "test"
+      component: "sized:test:optimisaion-test"

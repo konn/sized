@@ -9,27 +9,18 @@
 {-# LANGUAGE NoStarIsType #-}
 #endif
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Data.Sized.Internal
-       (Sized(..),instLL, instFunctor, ListLikeF,
-        withListLikeF, withListLikeF'
-       ) where
+module Data.Sized.Internal (Sized(..)) where
 import           Control.DeepSeq         (NFData (..))
 import           Control.Lens.At         (Index, IxValue, Ixed (..))
 import           Control.Lens.Indexed    (FoldableWithIndex (..),
                                           FunctorWithIndex (..),
                                           TraversableWithIndex (..))
-import           Data.Constraint         ((:-) (..), (:=>) (..), Class (..),
-                                          Dict (..), trans, weaken1, weaken2,
-                                          (&&&), (\\))
-import           Data.Constraint.Forall  (Forall, inst)
 import           Data.Foldable           (Foldable)
 import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
-import           Data.ListLike           (ListLike)
 import           Data.MonoTraversable    (Element, MonoFoldable (..),
                                           MonoFunctor (..),
                                           MonoTraversable (..))
-import           Data.Proxy              (Proxy (..))
 import qualified Data.Sequence           as Seq
 import           Data.Singletons.Prelude (SingI)
 import           Data.Traversable        (Traversable)
@@ -179,83 +170,3 @@ instance (Integral i, TraversableWithIndex i f, HasOrdinal nat, SingI n)
                        => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: TL.Nat)) #-}
   {-# SPECIALISE instance SingI n
                        => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat))  #-}
-
-class (ListLike (f a) a) => LLF f a
-instance (ListLike (f a) a) => LLF f a
-
-instance Class (ListLike (f a) a) (LLF f a) where
-  cls = Sub Dict
-instance (LLF f a) :=> (ListLike (f a) a) where
-  ins = Sub Dict
-
--- | Functor @f@ such that there is instance @ListLike (f a) a@ for any @a@.
---
--- Since 0.1.0.0
-type ListLikeF f = (Functor f, Forall (LLF f))
-
-instLLF :: forall f a. Forall (LLF f) :- ListLike (f a) a
-instLLF = trans ins inst
-{-# INLINE [1] instLLF #-}
-{-# RULES
-"instLLF/List" [~1]
-  instLLF = Sub Dict :: Forall (LLF []) :- ListLike [a] a
-"instLLF/Seq" [~1]
-  instLLF = Sub Dict :: Forall (LLF Seq.Seq) :- ListLike (Seq.Seq a) a
-"instLLF/Vector" [~1]
-  instLLF = Sub Dict :: Forall (LLF V.Vector) :- ListLike (V.Vector a) a
-  #-}
-
-instLL :: forall f a. ListLikeF f :- ListLike (f a) a
-instLL = trans instLLF weaken2
-{-# INLINE [1] instLL #-}
-{-# RULES
-"instLL/List" [~1]
-  instLL = Sub Dict :: ListLikeF [] :- ListLike [a] a
-"instLL/Seq" [~1]
-  instLL = Sub Dict :: ListLikeF Seq.Seq :- ListLike (Seq.Seq a) a
-"instLL/Vector" [~1]
-  instLL = Sub Dict :: ListLikeF V.Vector :- ListLike (V.Vector a) a
-  #-}
-
-
-instFunctor :: ListLikeF f :- Functor f
-instFunctor = weaken1
-{-# INLINE [1] instFunctor #-}
-{-# RULES
-"instFunctor/List" [~1]
-  instFunctor = Sub Dict :: ListLikeF [] :- Functor []
-"instFunctor/Seq" [~1]
-  instFunctor = Sub Dict :: ListLikeF Seq.Seq :- Functor Seq.Seq
-"instFunctor/Vector" [~1]
-  instFunctor = Sub Dict :: ListLikeF V.Vector :- Functor V.Vector
-  #-}
-
-withListLikeF :: forall pxy f a b. ListLikeF f
-              => pxy (f a) -> ((Functor f, ListLike (f a) a) => b) -> b
-withListLikeF _ b = b \\ llDic &&& instFunctor
-  where
-    llDic = instLL :: ListLikeF f :- ListLike (f a) a
-{-# RULES
-"withListLikeF/List" [~1] forall (pxy :: proxy [a]).
-  withListLikeF pxy = id
-"withListLikeF/Seq" [~1] forall (pxy :: proxy (Seq.Seq a)).
-  withListLikeF pxy = id
-"withListLikeF/Vector" [~1] forall (pxy :: proxy (V.Vector a)).
-  withListLikeF pxy = id
- #-}
-{-# INLINE [1] withListLikeF #-}
-
-withListLikeF' :: ListLikeF f => f a -> ((Functor f, ListLike (f a) a) => b) -> b
-withListLikeF' xs = withListLikeF (toProxy xs)
-{-# RULES
-"withListLikeF'/List" [~1] forall (pxy :: [a]).
-  withListLikeF' pxy = id
-"withListLikeF'/Seq" [~1] forall (pxy :: (Seq.Seq a)).
-  withListLikeF' pxy = id
-"withListLikeF'/Vector" [~1] forall (pxy ::(V.Vector a)).
-  withListLikeF' pxy = id
- #-}
-{-# INLINE [1] withListLikeF' #-}
-
-toProxy :: a -> Proxy a
-toProxy _ = Proxy

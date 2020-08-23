@@ -19,9 +19,9 @@ import           Control.DeepSeq              (NFData (..))
 import           Control.Lens.At              (Index, IxValue, Ixed (..))
 import           Control.Lens.TH              (makeWrapped)
 import           Control.Lens.Wrapped         (_Wrapped)
+import           Control.Subcategory
 import           Data.Hashable                (Hashable (..))
 import           Data.Kind                    (Type)
-import qualified Data.ListLike                as LL
 import           Data.MonoTraversable         (Element, MonoFoldable (..))
 import           Data.MonoTraversable         (MonoFunctor (..))
 import           Data.MonoTraversable         (MonoTraversable (..))
@@ -72,25 +72,25 @@ instance (Integral (Index (f a)), Ixed (f a), HasOrdinal nat)
   {-# INLINE ix #-}
 
 pattern (:<) :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (LL.ListLike (f a) a, HasOrdinal nat)
+                (CFreeMonoid f, Dom f a, HasOrdinal nat)
               => forall (n1 :: nat). (n ~ Succ n1, PN.SingI n1)
               => a -> Flipped f a n1 -> Flipped f a n
 pattern a :< as <- Flipped (a Orig.:< (Flipped -> as)) where
   a :< Flipped as = Flipped (a Orig.:< as)
 
 pattern NilL :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (LL.ListLike (f a) a, HasOrdinal nat)
+                (CFreeMonoid f, Dom f a, HasOrdinal nat)
              => n ~ Zero nat => Flipped f a n
 pattern NilL = Flipped Orig.NilL
 
 pattern (:>) :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (LL.ListLike (f a) a, HasOrdinal nat)
+                (CFreeMonoid f, Dom f a, HasOrdinal nat)
              => forall (n1 :: nat). (n ~ Succ n1, PN.SingI n1)
              => Flipped f a n1 -> a -> Flipped f a n
 pattern as :> a <- Flipped ((Flipped -> as) Orig.:> a) where
   Flipped as :> a = Flipped (as Orig.:> a)
 
 pattern NilR :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (LL.ListLike (f a) a, HasOrdinal nat)
+                (CFreeMonoid f, Dom f a, HasOrdinal nat)
              => n ~ Zero nat => Flipped f a n
 pattern NilR = Flipped Orig.NilR

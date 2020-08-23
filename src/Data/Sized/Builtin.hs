@@ -12,17 +12,18 @@ module Data.Sized.Builtin
 import           Data.Sized hiding ((:<), (:>), NilL, NilR, Sized)
 import qualified Data.Sized as S
 
-import           Data.ListLike                (ListLike)
+import           Control.Subcategory
+import           Data.Kind                    (Type)
 import           Data.Singletons.Prelude      (SingI)
 import           Data.Singletons.Prelude.Enum (PEnum (..))
 import qualified Data.Type.Ordinal            as O
 import qualified GHC.TypeLits                 as TL
 
-type Ordinal (n :: TL.Nat) = O.Ordinal n
-type Sized f (n :: TL.Nat) = S.Sized f n
+type Ordinal = (O.Ordinal :: TL.Nat -> Type)
+type Sized = (S.Sized :: (Type -> Type) -> TL.Nat -> Type -> Type)
 
 pattern (:<) :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a)
+                (CFreeMonoid f, Dom f a)
              => forall (n1 :: TL.Nat).
                 (n ~ Succ n1, SingI n1)
              => a -> Sized f n1 a -> Sized f n a
@@ -30,12 +31,12 @@ pattern a :< b = a S.:< b
 infixr 5 :<
 
 pattern NilL :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a)
+                (CFreeMonoid f, Dom f a)
              => n ~ 0 => Sized f n a
 pattern NilL = S.NilL
 
 pattern (:>) :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a)
+                (CFreeMonoid f, Dom f a)
              => forall (n1 :: TL.Nat).
                 (n ~ Succ n1, SingI n1)
              => Sized f n1 a -> a -> Sized f n a
@@ -43,6 +44,6 @@ pattern a :> b = a S.:> b
 infixl 5 :>
 
 pattern NilR :: forall f (n :: TL.Nat) a.
-                (ListLike (f a) a,  SingI n)
+                (CFreeMonoid f, Dom f a,  SingI n)
              => n ~ 0 => Sized f n a
 pattern NilR = S.NilR
