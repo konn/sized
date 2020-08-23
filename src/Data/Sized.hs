@@ -580,13 +580,6 @@ zipSame :: forall f a b n. (Dom f a, CZip f, Dom f b, Dom f (a, b))
 zipSame = coerce $ czip @f @a @b
 {-# INLINE [1] zipSame #-}
 
-coerceBin
-  :: forall f a b c n m l.
-    (f a -> f b -> f c)
-  -> Sized f n a -> Sized f m b -> Sized f l c
-{-# INLINE coerceBin #-}
-coerceBin = coerce
-
 -- | Zipping two sequences with funtion. Length is adjusted to shorter one.
 --
 -- Since 0.7.0.0
@@ -595,41 +588,8 @@ zipWith :: forall f a b c n m. (Dom f a, CZip f, Dom f b, CFreeMonoid f, Dom f c
 zipWith = coerce $ czipWith @f @a @b @c
 {-# INLINE [1] zipWith #-}
 
-{-# RULES
-"zipWith/Seq" [~1]
-  zipWith = \f -> coerceBin @Seq.Seq $ Seq.zipWith f
-"zipWith/Vector" [~1] forall f.
-  zipWith f = (Sized .) . (. runSized) . V.zipWith f . runSized
-"zipWith/UVector" [~1]
-  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c).
-  zipWith f = (Sized .) . (. runSized) . UV.zipWith f . runSized
-"zipWith/MVector" [~1]
-  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c).
-  zipWith f = (Sized .) . (. runSized) . SV.zipWith f . runSized
-  #-}
 
 
-zipWithSameList
-  :: forall a b c n. (a -> b -> c) 
-  -> Sized [] n a -> Sized [] n b -> Sized [] n c
-zipWithSameList = coerce $ P.zipWith @a @b @c
-
-zipWithSameSeq
-  :: forall a b c n. (a -> b -> c) 
-  -> Sized Seq.Seq n a -> Sized Seq.Seq n b -> Sized Seq.Seq n c
-zipWithSameSeq = coerce $ Seq.zipWith @a @b @c
-
-zipWithSameVec
-  :: forall a b c n. (a -> b -> c) 
-  -> Sized V.Vector n a -> Sized V.Vector n b -> Sized V.Vector n c
-zipWithSameVec = coerce $ V.zipWith @a @b @c
-
-zipWithSameUVec
-  :: forall a b c n. 
-      (UV.Unbox a, UV.Unbox b, UV.Unbox c)
-  => (a -> b -> c) 
-  -> Sized UV.Vector n a -> Sized UV.Vector n b -> Sized UV.Vector n c
-zipWithSameUVec = coerce $ UV.zipWith @a @b @c
 -- | 'zipWith' for the sequences of the same length.
 --
 -- Since 0.7.0.0
@@ -655,22 +615,6 @@ zipWithSame
   #-}
 zipWithSame = coerce $ czipWith @f @a @b @c
 {-# INLINE [1] zipWithSame #-}
-
-{-# RULES
-"zipWithSame/Seq"
-  zipWithSame = zipWithSameSeq
-"zipWithSame/List"
-  zipWithSame = zipWithSameList
-"zipWithSame/Vector"
-  zipWithSame = zipWithSameVec
-"zipWithSame/UVector"
-  forall (f :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) => a -> b -> c).
-  zipWithSame f = zipWithSameUVec f
-
-"zipWithSame/MVector" [~1]
-  forall (f :: (SV.Storable a, SV.Storable b, SV.Storable c) => a -> b -> c).
-  zipWithSame f = (Sized .) . (. runSized) . Seq.zipWith f . runSized
-  #-}
 
 -- | Unzipping the sequence of tuples.
 --
