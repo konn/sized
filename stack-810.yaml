@@ -1,4 +1,4 @@
-resolver: nightly-2020-06-21
+resolver: nightly-2020-08-27
 
 flags: {}
 packages:
