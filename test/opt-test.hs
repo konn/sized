@@ -11,6 +11,7 @@ import           Data.Singletons.Prelude
 import           Data.Sized.Builtin      (Sized, zipWithSame)
 import qualified Data.Sized.Builtin      as SV
 import qualified Data.Vector             as V
+import qualified Data.Vector.Generic     as G
 import           Data.Vector.Storable    (Storable)
 import qualified Data.Vector.Storable    as S
 import           Data.Vector.Unboxed     (Unbox)
@@ -42,6 +43,11 @@ zipWith_List_Prel = zipWith
 
 zipWithSame_Boxed :: (a -> b -> c) -> VSized n a -> VSized n b -> VSized n c
 zipWithSame_Boxed = zipWithSame
+
+zipWithSame_Boxed_mono
+  :: (Int -> (Integer -> Bool) -> [Int])
+  -> VSized n Int -> VSized n (Integer -> Bool) -> VSized n [Int]
+zipWithSame_Boxed_mono = zipWithSame
 
 zipWithSame_Unboxed
   :: (Unbox a, Unbox b, Unbox c)
@@ -96,10 +102,16 @@ main = hspec $ do
               'zipWithSame_List ==- 'zipWith_List_Prel
           )
     describe "Boxed Vector" $ do
-      it "doesn't contain type classes" $
+      it "doesn't contain type classes, except for G.Vector" $
         checkInspection
         $(inspectTest
-          $ hasNoTypeClasses 'zipWithSame_Boxed
+          $ 'zipWithSame_Boxed `hasNoTypeClassesExcept`
+            [''G.Vector]
+          )
+      it "doesn't contain type classes, if fully instantiated" $
+        checkInspection
+        $(inspectTest
+          $ hasNoTypeClasses 'zipWithSame_Boxed_mono
           )
       it "is almost the same as the original zipWith (Boxed)" $
         checkInspection
