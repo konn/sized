@@ -489,9 +489,9 @@ replicate' = withSing replicate
 -- | Since 0.7.0.0
 generate
   :: forall (nat :: Type) f (n :: nat) (a :: Type).
-      (CFreeMonoid f, SingI n, Dom f a, HasOrdinal nat)
+      (CFreeMonoid f, Dom f a, HasOrdinal nat)
   => Sing n -> (Ordinal n -> a) -> Sized f n a
-generate = coerce $ \sn ->
+generate = coerce $ \sn -> withSingI sn $
   cgenerate @f @a (P.fromIntegral $ toNatural @nat @n sn)
     . (. toEnum @(Ordinal n))
 {-# INLINE [1] generate #-}
