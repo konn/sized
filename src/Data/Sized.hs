@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE AllowAmbiguousTypes, CPP, ConstraintKinds, DataKinds          #-}
@@ -1361,15 +1363,9 @@ instance
   Sized fs <*> Sized xs = Sized (V.zipWith ($) fs xs)
  #-}
 
-instance Constrained f => Constrained (Sized f n) where
-  type Dom (Sized f n) a = Dom f a
-
 instance (CFreeMonoid f, PeanoOrder nat, SingI (n :: nat))
       => CPointed (Sized f n) where
   cpure = replicate'
-
-instance (CFunctor f) => CFunctor (Sized f n) where
-  cmap = coerce . cmap @f 
 
 instance (CFreeMonoid f, CZip f)
       => CApplicative (Sized f n) where
@@ -1409,3 +1405,7 @@ instance
   => CRepeat (Sized f n) where
   crepeat = replicate'
   {-# INLINE [1] crepeat #-}  
+
+instance CTraversable f => CTraversable (Sized f n) where
+  ctraverse = \f -> fmap coerce . ctraverse f . runSized
+  {-# INLINE ctraverse #-}

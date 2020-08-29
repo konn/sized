@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, ConstraintKinds, DataKinds, DeriveDataTypeable           #-}
-{-# LANGUAGE DeriveFunctor, DeriveTraversable, ExplicitNamespaces          #-}
-{-# LANGUAGE FlexibleContexts, FlexibleInstances                           #-}
+{-# LANGUAGE DeriveFunctor, DeriveTraversable, DerivingStrategies          #-}
+{-# LANGUAGE ExplicitNamespaces, FlexibleContexts, FlexibleInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PolyKinds         #-}
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, StandaloneDeriving           #-}
@@ -15,6 +15,7 @@ import           Control.Lens.At         (Index, IxValue, Ixed (..))
 import           Control.Lens.Indexed    (FoldableWithIndex (..),
                                           FunctorWithIndex (..),
                                           TraversableWithIndex (..))
+import           Control.Subcategory     (CFoldable, CFunctor, Constrained)
 import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
 import           Data.MonoTraversable    (Element, MonoFoldable (..),
@@ -43,6 +44,8 @@ newtype Sized (f :: Type -> Type) (n :: nat) a =
   Sized { runSized :: f a
         } deriving (Eq, Ord, Typeable,
                     Functor, Foldable, Traversable)
+          deriving newtype
+                (Constrained, CFoldable, CFunctor)
 
 type instance Element (Sized f n a) = Element (f a)
 
