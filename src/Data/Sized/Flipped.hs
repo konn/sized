@@ -9,32 +9,25 @@
 #if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
 {-# LANGUAGE NoStarIsType #-}
 #endif
-module Data.Sized.Flipped (Flipped(..),
-                           pattern (:<), pattern NilL,
-                           pattern (:>), pattern NilR) where
-import qualified Data.Sized          as Orig
-import           Data.Sized.Internal
+module Data.Sized.Flipped (Flipped(..)) where
+import Data.Sized.Internal
 
-import           Control.DeepSeq              (NFData (..))
-import           Control.Lens.At              (Index, IxValue, Ixed (..))
-import           Control.Lens.TH              (makeWrapped)
-import           Control.Lens.Wrapped         (_Wrapped)
-import           Control.Subcategory
-import           Data.Hashable                (Hashable (..))
-import           Data.Kind                    (Type)
-import           Data.MonoTraversable         (Element, MonoFoldable (..))
-import           Data.MonoTraversable         (MonoFunctor (..))
-import           Data.MonoTraversable         (MonoTraversable (..))
-import qualified Data.Sequence                as Seq
-import           Data.Singletons.Prelude.Enum (PEnum (..))
-import qualified Data.Type.Natural            as PN
-import           Data.Type.Natural.Class      (Zero)
-import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..))
-import           Data.Typeable                (Typeable)
-import qualified Data.Vector                  as V
-import qualified Data.Vector.Storable         as SV
-import qualified Data.Vector.Unboxed          as UV
-import qualified GHC.TypeLits                 as TL
+import           Control.DeepSeq      (NFData (..))
+import           Control.Lens.At      (Index, IxValue, Ixed (..))
+import           Control.Lens.TH      (makeWrapped)
+import           Control.Lens.Wrapped (_Wrapped)
+import           Data.Hashable        (Hashable (..))
+import           Data.MonoTraversable (Element, MonoFoldable (..))
+import           Data.MonoTraversable (MonoFunctor (..))
+import           Data.MonoTraversable (MonoTraversable (..))
+import qualified Data.Sequence        as Seq
+import qualified Data.Type.Natural    as PN
+import           Data.Type.Ordinal    (HasOrdinal, Ordinal (..))
+import           Data.Typeable        (Typeable)
+import qualified Data.Vector          as V
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
+import qualified GHC.TypeLits         as TL
 
 -- | Wrapper for @'Sized'@ which takes length as its last element, instead of the second.
 --
@@ -70,27 +63,3 @@ instance (Integral (Index (f a)), Ixed (f a), HasOrdinal nat)
   {-# SPECIALISE instance Ixed (Flipped Seq.Seq a (n :: PN.Nat)) #-}
   ix o = _Wrapped . ix o
   {-# INLINE ix #-}
-
-pattern (:<) :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (CFreeMonoid f, Dom f a, HasOrdinal nat)
-              => forall (n1 :: nat). (n ~ Succ n1, PN.SingI n1)
-              => a -> Flipped f a n1 -> Flipped f a n
-pattern a :< as <- Flipped (a Orig.:< (Flipped -> as)) where
-  a :< Flipped as = Flipped (a Orig.:< as)
-
-pattern NilL :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (CFreeMonoid f, Dom f a, HasOrdinal nat)
-             => n ~ Zero nat => Flipped f a n
-pattern NilL = Flipped Orig.NilL
-
-pattern (:>) :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (CFreeMonoid f, Dom f a, HasOrdinal nat)
-             => forall (n1 :: nat). (n ~ Succ n1, PN.SingI n1)
-             => Flipped f a n1 -> a -> Flipped f a n
-pattern as :> a <- Flipped ((Flipped -> as) Orig.:> a) where
-  Flipped as :> a = Flipped (as Orig.:> a)
-
-pattern NilR :: forall nat (f :: Type -> Type) (n :: nat) a.
-                (CFreeMonoid f, Dom f a, HasOrdinal nat)
-             => n ~ Zero nat => Flipped f a n
-pattern NilR = Flipped Orig.NilR

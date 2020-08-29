@@ -15,7 +15,6 @@ import           Control.Lens.At         (Index, IxValue, Ixed (..))
 import           Control.Lens.Indexed    (FoldableWithIndex (..),
                                           FunctorWithIndex (..),
                                           TraversableWithIndex (..))
-import           Data.Foldable           (Foldable)
 import           Data.Hashable           (Hashable (..))
 import           Data.Kind               (Type)
 import           Data.MonoTraversable    (Element, MonoFoldable (..),
@@ -23,7 +22,6 @@ import           Data.MonoTraversable    (Element, MonoFoldable (..),
                                           MonoTraversable (..))
 import qualified Data.Sequence           as Seq
 import           Data.Singletons.Prelude (SingI)
-import           Data.Traversable        (Traversable)
 import qualified Data.Type.Natural       as PN
 import           Data.Type.Ordinal       (HasOrdinal, Ordinal (..),
                                           ordToNatural, unsafeNaturalToOrd)
