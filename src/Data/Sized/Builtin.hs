@@ -10,15 +10,15 @@
 --   GHC's built-in type numeral @'TL.Nat'@.
 module Data.Sized.Builtin
        ( -- * Main Data-types
-    Sized(), SomeSized, S.SomeSized'(SomeSized), Ordinal,
+    Sized(), SomeSized, pattern SomeSized, Ordinal,
     DomC(),
     -- * Accessors
     -- ** Length information
     length, sLength, null,
     -- ** Indexing
     (!!), (%!!), index, sIndex, head, last,
-    uncons, uncons', Uncons, 
-    unsnoc, unsnoc', Unsnoc,
+    uncons, uncons', Uncons, pattern S.Uncons,
+    unsnoc, unsnoc', Unsnoc, pattern S.Unsnoc,
     -- ** Slicing
     tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
     -- * Construction
@@ -40,7 +40,7 @@ module Data.Sized.Builtin
     toSizedWithDefault, toSizedWithDefault',
     -- * Querying
     -- ** Partitioning
-    Partitioned(),
+    Partitioned(), pattern S.Partitioned,
     takeWhile, dropWhile, span, break, partition,
     -- ** Searching
     elem, notElem, find, findIndex, sFindIndex, 
@@ -56,7 +56,9 @@ module Data.Sized.Builtin
     -- $patterns
 
     -- ** Definitions
-    viewCons, ConsView (), viewSnoc, SnocView(),
+    viewCons, ConsView, pattern (S.:-), pattern S.NilCV,
+    viewSnoc, pattern (S.:-::), pattern S.NilSV,
+    SnocView(),
 
     pattern (:<), pattern NilL , pattern (:>), pattern NilR,
   ) where
@@ -86,6 +88,7 @@ pattern SomeSized
   :: forall (f :: Type -> Type) a. ()
   => forall (n :: TL.Nat). SNat n
   -> Sized f n a -> SomeSized f a
+{-# COMPLETE SomeSized #-}
 pattern SomeSized n s = S.SomeSized'  n s
 
 length :: (Dom f a, CFoldable f, KnownNat n) => Sized f n a -> Int
