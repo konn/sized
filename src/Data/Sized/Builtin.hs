@@ -17,8 +17,8 @@ module Data.Sized.Builtin
     length, sLength, null,
     -- ** Indexing
     (!!), (%!!), index, sIndex, head, last,
-    uncons, uncons', Uncons, pattern S.Uncons,
-    unsnoc, unsnoc', Unsnoc, pattern S.Unsnoc,
+    uncons, uncons', Uncons, pattern Uncons,
+    unsnoc, unsnoc', Unsnoc, pattern Unsnoc,
     -- ** Slicing
     tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
     -- * Construction
@@ -40,7 +40,7 @@ module Data.Sized.Builtin
     toSizedWithDefault, toSizedWithDefault',
     -- * Querying
     -- ** Partitioning
-    Partitioned(), pattern S.Partitioned,
+    Partitioned(), pattern Partitioned,
     takeWhile, dropWhile, span, break, partition,
     -- ** Searching
     elem, notElem, find, findIndex, sFindIndex, 
@@ -56,9 +56,10 @@ module Data.Sized.Builtin
     -- $patterns
 
     -- ** Definitions
-    viewCons, ConsView, pattern (S.:-), pattern S.NilCV,
-    viewSnoc, pattern (S.:-::), pattern S.NilSV,
-    SnocView(),
+    viewCons, ConsView,
+    pattern (S.:-), pattern S.NilCV,
+    viewSnoc, SnocView,
+    pattern (S.:-::), pattern S.NilSV,
 
     pattern (:<), pattern NilL , pattern (:>), pattern NilR,
   ) where
@@ -140,7 +141,19 @@ unsnoc' :: (Dom f a, KnownNat n, CFreeMonoid f) => proxy n -> Sized f (n + 1) a 
 unsnoc' = S.unsnoc' @TL.Nat
 
 type Uncons f (n :: TL.Nat) a = S.Uncons f n a
+pattern Uncons
+  :: forall (f :: Type -> Type) (n :: TL.Nat) a. ()
+  => forall (n1 :: TL.Nat). (n ~ Succ n1, SingI n1)
+  => a -> Sized f n1 a -> Uncons f n a
+pattern Uncons a as = S.Uncons a as
+
 type Unsnoc f (n :: TL.Nat) a = S.Unsnoc f n a
+
+pattern Unsnoc
+  :: forall (f :: Type -> Type) (n :: TL.Nat) a. ()
+  => forall (n1 :: TL.Nat). (n ~ Succ n1)
+  => Sized f n1 a -> a -> Unsnoc f n a
+pattern Unsnoc xs x = S.Unsnoc xs x
 
 tail :: (Dom f a, CFreeMonoid f) => Sized f (1 + n) a -> Sized f n a
 tail = S.tail @TL.Nat
@@ -323,6 +336,14 @@ toSizedWithDefault' :: (Dom f a, KnownNat n, CFreeMonoid f)
 toSizedWithDefault' = S.toSizedWithDefault' @TL.Nat
 
 type Partitioned f (n :: TL.Nat) a = S.Partitioned f n a
+
+pattern Partitioned
+  :: forall (f :: Type -> Type) (n :: TL.Nat) a. ()
+  => forall (n1 :: TL.Nat) (m :: TL.Nat). (n ~ (n1 + m), Dom f a)
+  => SNat n1 -> Sized f n1 a -> SNat m
+  -> Sized f m a -> Partitioned f n a
+{-# COMPLETE Partitioned #-}
+pattern Partitioned ls l rs r = S.Partitioned ls l rs r
 
 takeWhile :: (Dom f a, CFreeMonoid f) => (a -> Bool) -> Sized f n a -> SomeSized f a
 takeWhile = S.takeWhile @TL.Nat
