@@ -196,8 +196,8 @@ toSomeSized = S.toSomeSized @Nat
 replicate :: (Dom f a, CFreeMonoid f) => SNat n -> a -> Sized f n a
 replicate = S.replicate @Nat
 
-replicate' :: (Dom f a, CFreeMonoid f) => SNat n -> a -> Sized f n a
-replicate' = S.replicate @Nat
+replicate' :: (Dom f a, CFreeMonoid f, SingI n) => a -> Sized f n a
+replicate' = S.replicate' @Nat
 
 generate :: (Dom f a, CFreeMonoid f, SingI n) => SNat n -> (Ordinal n -> a) -> Sized f n a
 generate = S.generate @Nat
