@@ -308,7 +308,7 @@ uncons =
   $ gcastWith 
       (lneqRightPredSucc sZero (sing @n) Witness
       )
-  $ uncurry (Uncons @f @(Pred n) @a) . coerce (fromJust . cuncons @f @a)
+  $ uncurry (Uncons @nat @f @(Pred n) @a) . coerce (fromJust . cuncons @f @a)
 
 uncons'
   :: forall nat f (n :: nat) a proxy.
@@ -319,7 +319,8 @@ uncons' _  = withSingI (sSucc $ sing @n)
 {-# INLINE uncons' #-}
 
 data Uncons f (n :: nat) a where
-  Uncons :: forall f n a. SingI n => a -> Sized f n a -> Uncons f (Succ n) a
+  Uncons :: forall nat f (n :: nat) a. SingI n
+    => a -> Sized f n a -> Uncons f (Succ n) a
 
 -- | Take the 'init' and 'last' of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
@@ -339,7 +340,7 @@ unsnoc = withSingI
 {-# NOINLINE [1] unsnoc #-}
 
 data Unsnoc f n a where
-  Unsnoc :: Sized f (n :: nat) a -> a -> Unsnoc f (Succ n) a
+  Unsnoc :: forall nat f n a. Sized f (n :: nat) a -> a -> Unsnoc f (Succ n) a
 
 unsnoc'
   :: forall nat f (n :: nat) a proxy. 
