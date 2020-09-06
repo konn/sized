@@ -11,5 +11,4 @@ extra-deps:
 - singletons-presburger-0.3.0.1
 - type-natural-0.9.0.0
 - inspection-testing-0.4.2.4
-- git: https://github.com/konn/subcategories.git
-  commit: 79c68f79ed77d24e35e5f7a4d580f9a8f5d0b71a
+- subcategories-0.1.0.0
