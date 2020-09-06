@@ -18,7 +18,7 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
 -- | This module provides the functionality to make length-parametrized types
---   from existing 'ListLike' and 'Functor' sequential types.
+--   from existing 'CFreeMonoid' sequential types.
 --
 --   Most of the complexity of operations for @Sized f n a@ are the same as
 --   original operations for @f@. For example, '!!' is O(1) for
@@ -991,12 +991,7 @@ dropWhile
 dropWhile = (toSomeSized .) . coerce (cdropWhile @f @a)
 {-# INLINE dropWhile #-}
 
--- | Invariant: @'ListLike' (f a) a@ instance must be implemented
--- to satisfy the following property:
--- @length (fst (span p xs)) + length (snd (span p xs)) == length xs@
--- Otherwise, this function introduces severe contradiction.
---
--- Since 0.7.0.0
+-- | Since 0.7.0.0
 span
   :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
@@ -1004,12 +999,7 @@ span
 span = (unsafePartitioned @nat @n .) . coerce (cspan @f @a)
 {-# INLINE span #-}
 
--- | Invariant: @'ListLike' (f a) a@ instance must be implemented
--- to satisfy the following property:
--- @length (fst (break p xs)) + length (snd (break p xs)) == length xs@
--- Otherwise, this function introduces severe contradiction.
---
--- Since 0.7.0.0
+-- | Since 0.7.0.0
 break
   :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
@@ -1017,12 +1007,7 @@ break
 break = (unsafePartitioned @nat @n .) . coerce (cbreak @f @a)
 {-# INLINE break #-}
 
--- | Invariant: @'ListLike' (f a) a@ instance must be implemented
--- to satisfy the following property:
--- @length (fst (partition p xs)) + length (snd (partition p xs)) == length xs@
--- Otherwise, this function introduces severe contradiction.
---
--- Since 0.7.0.0
+-- | Since 0.7.0.0
 partition
   :: forall nat f (n :: nat) a. 
       (HasOrdinal nat, CFreeMonoid f, Dom f a)

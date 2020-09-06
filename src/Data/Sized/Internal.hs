@@ -34,10 +34,7 @@ import qualified GHC.TypeLits            as TL
 
 -- | @Sized@ wraps a sequential type 'f' and makes length-parametrized version.
 --
--- Here, 'f' must be the instance of 'Functor' and @'ListLike' (f a) a@ for all @a@.
--- This constraint is expressed by 'ListLikeF'.
--- Folding and traversing function such as 'all' and 'foldl'' is available
--- via 'Foldable' or 'Traversable' class, if 'f' is the instance of them.
+-- Here, 'f' must be the instance of 'CFreeMonoid' (f a) a@ for all @a@.
 --
 -- Since 0.2.0.0
 newtype Sized (f :: Type -> Type) (n :: nat) a =
