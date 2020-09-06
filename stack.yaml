@@ -1,1 +1,14 @@
-stack-806.yaml
+resolver: lts-16.2
+
+ghc-options:
+  $everything: -haddock
+
+packages:
+- '.'
+
+extra-deps: 
+- ghc-typelits-presburger-0.3.0.1
+- singletons-presburger-0.3.0.1
+- type-natural-0.9.0.0
+- inspection-testing-0.4.2.4
+- subcategories-0.1.0.0
