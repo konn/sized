@@ -58,7 +58,7 @@ jobs:
         path: .stack-work
         # An explicit key for restoring and saving the cache
         key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
-        restore: |
+        restore-keys: |
           ${{runner.os}}-master-stack-work-${{ matrix.stack_yaml }}
           ${{runner.os}}-master-stack-work
 
@@ -131,7 +131,7 @@ jobs:
         path: .stack-work
         # An explicit key for restoring and saving the cache
         key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        restore: |
+        restore-keys: |
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}
           ${{runner.os}}-master-stack-work
@@ -202,7 +202,7 @@ jobs:
         path: .stack-work
         # An explicit key for restoring and saving the cache
         key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        restore: |
+        restore-keys: |
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}
           ${{runner.os}}-master-stack-work
