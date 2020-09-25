@@ -1,0 +1,217 @@
+name: Haskell CI
+
+on: [push]
+
+jobs:
+  build-deps:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: 
+        stack_yaml: ["stack-806.yaml", "stack-808.yaml", "stack-810.yaml"]
+    env:
+      STACK_YAML: ${{ matrix.stack_yaml }}
+
+    steps:
+
+    - uses: actions/checkout@v2
+    - name: Cache ~/.stack
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.stack
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-master-stack-global-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-global
+
+    - name: Cache ~/.cabal
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.cabal
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-master-cabal-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-cabal
+
+    - name: Cache ~/.ghc
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.ghc
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-master-ghc-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-ghc
+
+    - name: Cache .stack-work
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: .stack-work
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+        restore: |
+          ${{runner.os}}-master-stack-work-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-work
+
+    - name: Setup Stack
+      uses: mstksg/setup-stack@v1
+
+    - name: Install dependencies
+      run: |
+        pwd
+        ls
+        stack --no-terminal build --test --no-run-tests --only-dependencies
+
+  build:
+    needs:
+    - build-deps
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: 
+        stack_yaml: ["stack-806.yaml", "stack-808.yaml", "stack-810.yaml"]
+    env:
+      STACK_YAML: ${{ matrix.stack_yaml }}
+
+    steps:
+
+    - uses: actions/checkout@v2
+    - name: Cache ~/.stack
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.stack
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-global
+
+    - name: Cache ~/.cabal
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.cabal
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-cabal
+
+    - name: Cache ~/.ghc
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.ghc
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-ghc
+
+    - name: Cache .stack-work
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: .stack-work
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        restore: |
+          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-work
+    - name: Setup Stack
+      uses: mstksg/setup-stack@v1
+    - name: Build
+      run: |
+        stack --no-terminal build --test --no-run-tests
+
+  test:
+    needs:
+    - build-deps
+    - build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: 
+        stack_yaml: ["stack-806.yaml", "stack-808.yaml", "stack-810.yaml"]
+    env:
+      STACK_YAML: ${{ matrix.stack_yaml }}
+  
+    steps:
+
+    - uses: actions/checkout@v2
+    - name: Cache ~/.stack
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.stack
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-global
+
+    - name: Cache ~/.cabal
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.cabal
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-cabal
+
+    - name: Cache ~/.ghc
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: ~/.ghc
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
+        restore-keys: |
+          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-ghc
+
+    - name: Cache .stack-work
+      uses: actions/cache@v1.1.0
+      with:
+        # A directory to store and save the cache
+        path: .stack-work
+        # An explicit key for restoring and saving the cache
+        key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
+        restore: |
+          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}-${{ hashFiles('stack.yaml.lock') }}
+          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.stack_yaml }}
+          ${{runner.os}}-master-stack-work
+    - name: Setup Stack
+      uses: mstksg/setup-stack@v1
+
+    - name: Install Dependent Libraries
+      run: |
+        sudo apt-get update -y -qq
+        sudo apt-get install -y -qq wget libgmp3-dev libgsl0-dev liblapack-dev llvm-7-dev
+    - name: Run tests
+      run: stack --no-terminal build --test
