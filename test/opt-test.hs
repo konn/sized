@@ -115,11 +115,6 @@ main = hspec $ do
           $ 'zipWithSame_Boxed `hasNoTypeClassesExcept`
             [''G.Vector]
           )
-      it "doesn't contain type classes, if fully instantiated" $
-        checkInspection
-        $(inspectTest
-          $ hasNoTypeClasses 'zipWithSame_Boxed_mono
-          )
       it "is almost the same as the original zipWith (Boxed)" $
         checkInspection
           $(inspectTest $
@@ -143,17 +138,17 @@ main = hspec $ do
               'zipWithSame_Unboxed_monomorphic
               ==- 'zipWith_Unboxed_monomorphic
           )
-    describe "length" $ do
-      it "is a constant function when length is concrete (with Dom dictionary)" $
-        checkInspection
-          $(inspectTest $
-            'length_two ==- 'const_two_dom
-            )
-      it "doesn't contain Integer when the length is concrete" $
-        checkInspection
-          $(inspectTest $ hasNoType 'length_two ''Integer
+  describe "length" $ do
+    it "is a constant function when length is concrete (with Dom dictionary)" $
+      checkInspection
+        $(inspectTest $
+          'length_two ==- 'const_two_dom
           )
-      it "doesn't contain Natural when the length is concrete" $
-        checkInspection
-          $(inspectTest $ hasNoType 'length_two ''Natural
-          )
+    it "doesn't contain Integer when the length is concrete" $
+      checkInspection
+        $(inspectTest $ hasNoType 'length_two ''Integer
+        )
+    it "doesn't contain Natural when the length is concrete" $
+      checkInspection
+        $(inspectTest $ hasNoType 'length_two ''Natural
+        )
