@@ -71,7 +71,7 @@ module Data.Sized
     -- ** Definitions
     viewCons, ConsView (..), viewSnoc, SnocView(..),
 
-    pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+    pattern Nil, pattern (:<), pattern NilL , pattern (:>), pattern NilR,
   ) where
 
 import Data.Sized.Internal
@@ -1303,14 +1303,13 @@ nextToHead (_ ':<' a ':<' _) = a
 
 @
 slen :: ('SingI' n, 'Dom f a' f) => 'Sized' f n a -> 'Sing' n
-slen 'NilL'      = 'SZ'
+slen 'Nil'      = 'SZ'
 slen (_ ':<' as) = 'SS' (slen as)
-slen _           = error "impossible"
 @
 
-   So, we can use @':<'@ and @'NilL'@ (resp. @':>'@ and @'NilR'@) to
+   So, we can use @':<'@ and @'Nil'@ (resp. @':>'@ and @'Nil'@) to
    pattern-match directly on cons-side (resp. snoc-side) as we usually do for lists.
-   @':<'@, @'NilL'@, @':>'@ and @'NilR'@ are neither functions nor data constructors,
+   @'Nil'@, @':<'@, and @':>'@ are neither functions nor data constructors,
    but pattern synonyms so we cannot use them in expression contexts.
    For more detail on pattern synonyms, see
    <http://www.haskell.org/ghc/docs/latest/html/users_guide/syntax-extns.html#pattern-synonyms GHC Users Guide>
@@ -1328,12 +1327,25 @@ pattern (:<)
 pattern a :< as <- (viewCons -> a :- as) where
    a :< as = a <| as
 
+chkNil
+  :: forall nat f (n :: nat) a.
+      (IsPeano nat, SingI n)
+  => Sized f n a -> ZeroOrSucc n
+chkNil = const $ zeroOrSucc $ sing @n
+
+-- | Pattern synonym for a nil sequence.
+pattern Nil :: forall nat f (n :: nat) a.
+                (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
+            => (n ~ Zero nat) => Sized f n a
+pattern Nil <- (chkNil -> IsZero) where
+  Nil = empty
+
 -- | Pattern synonym for cons-side nil.
+{-# DEPRECATED NilL "Use Nil instead" #-}
 pattern NilL :: forall nat f (n :: nat) a.
                 (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
              => (n ~ Zero nat) => Sized f n a
-pattern NilL   <- (viewCons -> NilCV) where
-  NilL = empty
+pattern NilL = Nil
 
 infixl 5 :>
 
@@ -1346,11 +1358,18 @@ pattern (:>)
 pattern a :> b <- (viewSnoc -> a :-:: b) where
   a :> b = a |> b
 
+{-# DEPRECATED NilR "Use Nil instead" #-}
 pattern NilR :: forall nat f (n :: nat) a.
                 (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
              => n ~ Zero nat => Sized f n a
-pattern NilR   <- (viewSnoc -> NilSV) where
-  NilR = empty
+pattern NilR = Nil
+
+{-# COMPLETE (:<), Nil #-}
+{-# COMPLETE (:<), NilL #-}
+{-# COMPLETE (:<), NilR #-}
+{-# COMPLETE (:>), Nil #-}
+{-# COMPLETE (:>), NilL #-}
+{-# COMPLETE (:>), NilR #-}
 
 class Dom f a => DomC f a
 instance Dom f a => DomC f a

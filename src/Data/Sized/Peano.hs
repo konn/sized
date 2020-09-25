@@ -68,7 +68,7 @@ module Data.Sized.Peano
     viewSnoc, SnocView,
     pattern (:-::), pattern NilSV,
 
-    pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+    pattern Nil, pattern (:<), pattern NilL , pattern (:>), pattern NilR,
   ) where
 import qualified Data.Sized as S
 import Data.Sized (DomC)
@@ -947,14 +947,14 @@ nextToHead (_ ':<' a ':<' _) = a
 
 @
 slen :: ('SingI' n, 'Dom f a' f) => 'Sized' f n a -> 'Sing' n
-slen 'NilL'      = 'SZ'
+slen 'Nil'      = 'SZ'
 slen (_ ':<' as) = 'SS' (slen as)
 slen _           = error "impossible"
 @
 
-   So, we can use @':<'@ and @'NilL'@ (resp. @':>'@ and @'NilR'@) to
+   So, we can use @':<'@ and @'Nil'@ (resp. @':>'@ and @'Nil'@) to
    pattern-match directly on cons-side (resp. snoc-side) as we usually do for lists.
-   @':<'@, @'NilL'@, @':>'@ and @'NilR'@ are neither functions nor data constructors,
+   @'Nil'@, @':<'@, and @':>'@ are neither functions nor data constructors,
    but pattern synonyms so we cannot use them in expression contexts.
    For more detail on pattern synonyms, see
    <http://www.haskell.org/ghc/docs/latest/html/users_guide/syntax-extns.html#pattern-synonyms GHC Users Guide>
@@ -971,11 +971,18 @@ pattern (:<)
 pattern a :< b = a S.:< b
 infixr 5 :<
 
+-- | Pattern synonym for a nil sequence.
+pattern Nil
+  :: forall (f :: Type -> Type) a n. 
+      (Dom f a, SingI n, CFreeMonoid f)
+  => (n ~ 'Z) => Sized f n a
+pattern Nil = S.Nil
+
 -- | Pattern synonym for cons-side nil.
 pattern NilL :: forall f (n :: Nat) a.
                 (SingI n, CFreeMonoid f, Dom f a)
              => n ~ 'Z => Sized f n a
-pattern NilL = S.NilL
+pattern NilL = Nil
 
 -- | Pattern synonym for snoc-side unsnoc.
 pattern (:>)
@@ -990,8 +997,10 @@ infixl 5 :>
 pattern NilR :: forall f (n :: Nat) a.
                 (CFreeMonoid f, Dom f a,  SingI n)
              => n ~ 'Z => Sized f n a
-pattern NilR = S.NilR
+pattern NilR = Nil
 {-# COMPLETE (:<), NilL #-}
 {-# COMPLETE (:<), NilR #-}
+{-# COMPLETE (:<), Nil #-}
 {-# COMPLETE (:>), NilL #-}
 {-# COMPLETE (:>), NilR #-}
+{-# COMPLETE (:>), Nil #-}
