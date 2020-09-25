@@ -7,7 +7,7 @@
 {-# LANGUAGE NoStarIsType #-}
 -- | This module exports provides the functionality to make length-parametrized types
 --   from existing 'CFreeMonoid' sequential types,
---   parametrisedwith GHC's built in 'Nat' kind.
+--   parametrised with GHC's built in 'Nat' kind.
 --
 --   Most of the complexity of operations on @'Sized' f n a@ are the same as
 --   original operations on @f@. For example, '!!' is O(1) for
@@ -116,8 +116,8 @@ pattern SomeSized n s = S.SomeSized'  n s
 --   this function may return different value from type-parameterized length.
 --
 -- Since 0.8.0.0 (type changed)
-length :: (Dom f a, KnownNat n) => Sized f n a -> Int
 {-# INLINE length #-}
+length :: (Dom f a, KnownNat n) => Sized f n a -> Int
 length = S.length @Nat
 
 -- | @Sing@ version of 'length'.
@@ -791,10 +791,10 @@ sFindIndices = S.sFindIndices @Nat
 
 -- | Returns the index of the given element in the list, if exists.
 --
--- Since 0.7.0.0
+-- Since 0.8.0.0
 {-# INLINE elemIndex #-}
-elemIndex :: (Dom f a, CFoldable f) => (a -> Bool) -> Sized f n a -> Maybe Int
-elemIndex = S.findIndex @Nat
+elemIndex :: (Dom f a, CFoldable f, Eq a) => a -> Sized f n a -> Maybe Int
+elemIndex = S.elemIndex @Nat
 
 sElemIndex, sUnsafeElemIndex :: (Dom f a, KnownNat n, CFoldable f, Eq a) => a -> Sized f n a -> Maybe (Ordinal n)
 {-# DEPRECATED sUnsafeElemIndex "Use sElemIndex instead" #-}
@@ -813,15 +813,19 @@ sElemIndex = S.sElemIndex @Nat
 
 -- | Returns all indices of the given element in the list.
 --
--- Since 0.7.0.0
-elemIndices :: (Dom f a, CFoldable f) => (a -> Bool) -> Sized f n a -> [Int]
-elemIndices = S.findIndices @Nat
+-- Since 0.8.0.0
+{-# INLINE elemIndices #-}
+elemIndices :: (Dom f a, CFoldable f, Eq a) => a -> Sized f n a -> [Int]
+elemIndices = S.elemIndices @Nat
 
 -- | Ordinal version of 'elemIndices'
 --
--- Since 0.7.0.0
-sElemIndices :: (Dom f a, CFoldable f, KnownNat n) => (a -> Bool) -> Sized f n a -> [Ordinal n]
-sElemIndices = S.sFindIndices @Nat
+-- Since 0.8.0.0
+{-# INLINE sElemIndices #-}
+sElemIndices
+  :: (Dom f a, CFoldable f, KnownNat n, Eq a)
+  => a -> Sized f n a -> [Ordinal n]
+sElemIndices = S.sElemIndices @Nat
 
 --------------------------------------------------------------------------------
 -- Views and Patterns
@@ -915,6 +919,13 @@ pattern (:-::)
 pattern ls :-:: l = ls S.:-:: l
 {-# COMPLETE NilSV, (:-::) #-}
 
+
+-- | Case analysis for the snoc-side of sequence.
+--
+-- Since 0.8.0.0 (type changed)
+viewSnoc :: (Dom f a, KnownNat n, CFreeMonoid f) => Sized f n a -> SnocView f n a
+viewSnoc = S.viewSnoc @Nat
+
 {-$patterns #patterns#
 
    So we can pattern match on both end of sequence via views, but
@@ -951,12 +962,6 @@ slen _           = error "impossible"
    <https://ghc.haskell.org/trac/ghc/wiki/PatternSynonyms HaskellWiki>.
 -}
 
--- | Case analysis for the snoc-side of sequence.
---
--- Since 0.8.0.0 (type changed)
-viewSnoc :: (Dom f a, KnownNat n, CFreeMonoid f) => Sized f n a -> SnocView f n a
-viewSnoc = S.viewSnoc @Nat
-
 -- | Pattern synonym for cons-side uncons.
 pattern (:<)
   :: forall (f :: Type -> Type) a (n :: Nat).
@@ -966,7 +971,7 @@ pattern (:<)
 pattern a :< b = a S.:< b
 infixr 5 :<
 
--- | Pattern synonym for cons-side uncons.
+-- | Pattern synonym for cons-side nil.
 pattern NilL :: forall f (n :: Nat) a.
                 (KnownNat n, CFreeMonoid f, Dom f a)
              => n ~ 0 => Sized f n a
