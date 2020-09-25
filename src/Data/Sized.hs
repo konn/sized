@@ -1328,6 +1328,7 @@ pattern (:<)
 pattern a :< as <- (viewCons -> a :- as) where
    a :< as = a <| as
 
+-- | Pattern synonym for cons-side nil.
 pattern NilL :: forall nat f (n :: nat) a.
                 (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
              => (n ~ Zero nat) => Sized f n a
@@ -1336,6 +1337,7 @@ pattern NilL   <- (viewCons -> NilCV) where
 
 infixl 5 :>
 
+-- | Pattern synonym for snoc-side unsnoc.
 pattern (:>)
   :: forall nat (f :: Type -> Type) a (n :: nat).
       (Dom f a, PeanoOrder nat, SingI n, CFreeMonoid f)
