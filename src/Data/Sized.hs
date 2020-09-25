@@ -668,23 +668,6 @@ zipWithSame
   :: forall nat f (n :: nat) a b c.
       (Dom f a, CZip f, Dom f b, CFreeMonoid f, Dom f c)
   => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
-{-# SPECIALISE INLINE [1] zipWithSame
-  :: (a -> b -> c) -> Sized [] n a -> Sized [] n b -> Sized [] n c
-  #-}
-{-# SPECIALISE INLINE [1] zipWithSame
-  :: (a -> b -> c)
-  -> Sized V.Vector n a -> Sized V.Vector n b -> Sized V.Vector n c
-  #-}
-{-# SPECIALISE INLINE [1] zipWithSame
-  :: (UV.Unbox a, UV.Unbox b, UV.Unbox c)
-  => (a -> b -> c)
-  -> Sized UV.Vector n a -> Sized UV.Vector n b -> Sized UV.Vector n c
-  #-}
-{-# SPECIALISE INLINE [1] zipWithSame
-  :: (SV.Storable a, SV.Storable b, SV.Storable c)
-  => (a -> b -> c)
-  -> Sized SV.Vector n a -> Sized SV.Vector n b -> Sized SV.Vector n c
-  #-}
 zipWithSame = coerce $ czipWith @f @a @b @c
 {-# INLINE [1] zipWithSame #-}
 
