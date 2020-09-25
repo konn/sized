@@ -23,7 +23,7 @@ module Data.Sized.Builtin
     tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
     -- * Construction
     -- ** Initialisation
-    empty, singleton, toSomeSized, replicate, replicate', generate,
+    empty, singleton, toSomeSized, replicate, replicate', generate, generate',
     -- ** Concatenation
     cons, (<|), snoc, (|>), append, (++), concat,
     -- ** Zips
@@ -202,6 +202,11 @@ replicate' = S.replicate' @Nat
 
 generate :: (Dom f a, CFreeMonoid f) => SNat n -> (Ordinal n -> a) -> Sized f n a
 generate = S.generate @Nat
+
+generate'
+  :: forall f n a. (KnownNat n, Dom f a, CFreeMonoid f) => (Ordinal n -> a) -> Sized f n a
+{-# INLINE generate' #-}
+generate' = S.generate' @Nat
 
 cons :: (Dom f a, CFreeMonoid f) => a -> Sized f n a -> Sized f (n + 1) a
 cons = S.cons @Nat

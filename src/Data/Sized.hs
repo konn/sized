@@ -38,7 +38,7 @@ module Data.Sized
     tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
     -- * Construction
     -- ** Initialisation
-    empty, singleton, toSomeSized, replicate, replicate', generate,
+    empty, singleton, toSomeSized, replicate, replicate', generate, generate',
     -- ** Concatenation
     cons, (<|), snoc, (|>), append, (++), concat,
     -- ** Zips
@@ -494,6 +494,16 @@ generate = coerce $ \sn -> withSingI sn $
   cgenerate @f @a (P.fromIntegral $ toNatural @nat @n sn)
     . (. toEnum @(Ordinal n))
 {-# INLINE [1] generate #-}
+
+-- | 'generate' with length inferred.
+--
+--   Since 0.8.0.0
+generate'
+  :: forall (nat :: Type) f (n :: nat) (a :: Type).
+      (SingI n, CFreeMonoid f, Dom f a, HasOrdinal nat)
+  => (Ordinal n -> a) -> Sized f n a
+generate' = generate sing
+{-# INLINE [1] generate' #-}
 
 genVector :: forall nat (n :: nat) a.
             (HasOrdinal nat)
