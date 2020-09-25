@@ -1,16 +1,14 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE InstanceSigs, NoStarIsType #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE AllowAmbiguousTypes, ConstraintKinds, DataKinds          #-}
+{-# LANGUAGE AllowAmbiguousTypes, CPP, ConstraintKinds, DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveFoldable, DeriveFunctor             #-}
-{-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving          #-}
-{-# LANGUAGE KindSignatures, LambdaCase, LiberalTypeSynonyms               #-}
-{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction              #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, QuantifiedConstraints, ScopedTypeVariables, RankNTypes   #-}
-{-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies            #-}
-{-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
+{-# LANGUAGE DeriveTraversable, DerivingStrategies, ExplicitNamespaces     #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GADTs                    #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, InstanceSigs, KindSignatures      #-}
+{-# LANGUAGE LambdaCase, LiberalTypeSynonyms, MultiParamTypeClasses        #-}
+{-# LANGUAGE NoMonomorphismRestriction, NoStarIsType, PatternSynonyms      #-}
+{-# LANGUAGE PolyKinds, QuantifiedConstraints, RankNTypes                  #-}
+{-# LANGUAGE ScopedTypeVariables, StandaloneDeriving, TypeApplications     #-}
+{-# LANGUAGE TypeFamilies, TypeInType, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses, ViewPatterns                         #-}
 
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
@@ -32,7 +30,7 @@ module Data.Sized
     length, sLength, null,
     -- ** Indexing
     (!!), (%!!), index, sIndex, head, last,
-    uncons, uncons', Uncons(..), 
+    uncons, uncons', Uncons(..),
     unsnoc, unsnoc', Unsnoc(..),
     -- ** Slicing
     tail, init, take, takeAtMost, drop, splitAt, splitAtMost,
@@ -58,7 +56,7 @@ module Data.Sized
     Partitioned(..),
     takeWhile, dropWhile, span, break, partition,
     -- ** Searching
-    elem, notElem, find, findIndex, sFindIndex, 
+    elem, notElem, find, findIndex, sFindIndex,
     findIndices, sFindIndices,
     elemIndex, sElemIndex, sUnsafeElemIndex, elemIndices, sElemIndices,
     -- * Views and Patterns
@@ -78,40 +76,49 @@ module Data.Sized
 
 import Data.Sized.Internal
 
+import           Control.Applicative          (ZipList (..), (<*>))
+import           Control.Subcategory          (CApplicative (..),
+                                               CFoldable (..), CFreeMonoid (..),
+                                               CFunctor (..), CPointed (..),
+                                               CRepeat (..), CSemialign (..),
+                                               CTraversable (..), CUnzip (..),
+                                               CZip (..), Constrained (Dom),
+                                               cfromList, ctoList)
+import           Data.Coerce                  (coerce)
+import           Data.Constraint              (Dict (..), withDict)
 import qualified Data.Foldable                as F
 import           Data.Kind                    (Type)
-import Data.Monoid
-import Control.Applicative ((<*>), ZipList(..))
 import qualified Data.List                    as L
+import           Data.Maybe                   (fromJust)
+import           Data.Monoid                  (Monoid (..), (<>))
 import qualified Data.Sequence                as Seq
-import           Data.Singletons.Prelude.Bool 
-import Data.Constraint
-import           Data.Singletons.Prelude      (SomeSing(..))
-import           Data.Singletons.Prelude      (SingI (..))
-import           Data.Singletons.Prelude      (withSing, withSingI)
-import Control.Subcategory
-import           Data.Singletons.Prelude.Enum (sSucc, sPred, PEnum (..))
+import           Data.Singletons.Prelude      (SingI (..), SomeSing (..),
+                                               withSing, withSingI)
+import           Data.Singletons.Prelude.Bool (Sing)
+import           Data.Singletons.Prelude.Enum (PEnum (..), sPred, sSucc)
+import           Data.These                   (These (..))
+import           Data.Type.Equality           ((:~:) (..), gcastWith)
 import qualified Data.Type.Natural            as Peano
-import           Data.Type.Natural.Class
-import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..))
-import           Data.Type.Ordinal            (ordToNatural)
+import           Data.Type.Natural.Class      (type (-.), IsPeano (..), One,
+                                               PNum (..), POrd (..),
+                                               PeanoOrder (..), S, SNum (..),
+                                               Zero, pattern Zero,
+                                               ZeroOrSucc (..), sOne, sZero)
+import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..),
+                                               ordToNatural)
 import           Data.Typeable                (Typeable)
 import qualified Data.Vector                  as V
 import qualified Data.Vector.Storable         as SV
 import qualified Data.Vector.Unboxed          as UV
 import qualified GHC.TypeLits                 as TL
-import           Prelude                      (fmap, uncurry, fromIntegral, const, Bool (..), Enum (..), Eq (..))
-import           Prelude                      (Functor, Int, Maybe (..))
-import           Prelude                      (Num (..), Ord (..), Ordering)
-import           Prelude                      (Show (..), flip, ($), (.))
+import           Prelude                      (Bool (..), Enum (..), Eq (..),
+                                               Functor, Int, Maybe (..),
+                                               Num (..), Ord (..), Ordering,
+                                               Show (..), const, flip, fmap,
+                                               fromIntegral, uncurry, ($), (.))
 import qualified Prelude                      as P
+import           Proof.Propositional          (IsTrue (..), withWitness)
 import           Unsafe.Coerce                (unsafeCoerce)
-import Data.Coerce (coerce)
-import Data.Maybe (fromJust)
-import Data.These (These(..))
-import Data.Type.Equality (gcastWith)
-import Proof.Propositional (withWitness, IsTrue(Witness))
-import Data.Type.Equality ((:~:)(..))
 
 --------------------------------------------------------------------------------
 -- Main data-types
@@ -152,7 +159,7 @@ instance Eq (f a) => Eq (SomeSized' f nat a) where
 --
 -- Since 0.8.0.0 (type changed)
 length
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
     (IsPeano nat, Dom f a, SingI n)
   => Sized f n a -> Int
 length = const $ fromIntegral $ toNatural $ sing @n
@@ -174,7 +181,7 @@ lengthPeanoZero = P.const 0
 -- | @Sing@ version of 'length'.
 --
 -- Since 0.8.0.0 (type changed)
-sLength :: forall nat f (n :: nat) a. 
+sLength :: forall nat f (n :: nat) a.
             (HasOrdinal nat, Dom f a, SingI n)
         => Sized f n a -> Sing n
 sLength _ = sing @n
@@ -207,12 +214,12 @@ nullTLSucc = P.const False
 
 {-# RULES
 "null/0"  [~2] null = nullTL0
-"null/0"  [~1] forall (vec :: (1 TL.<= n) => Sized f n a).
-  null vec = False
 "null/0"  [~2] null = nullTLSucc
+"null/0"  [~1] forall (vec :: 1 TL.<= n => Sized f n a).
+  null vec = False
 "null/Z"  [~2] null = nullPeano0
 "null/Sn" [~2] null = nullPeanoSucc
-#-}
+ #-}
 
 --------------------------------------------------------------------------------
 --- Indexing
@@ -232,7 +239,7 @@ nullTLSucc = P.const False
 --
 -- Since 0.7.0.0
 (%!!)
-  :: forall nat f (n :: nat) c. 
+  :: forall nat f (n :: nat) c.
     (HasOrdinal nat, CFoldable f, Dom f c)
   => Sized f n c -> Ordinal n -> c
 (%!!) = coerce $ (. (P.fromIntegral . ordToNatural)) . cindex @f @c
@@ -252,7 +259,7 @@ nullTLSucc = P.const False
 --
 -- Since 0.7.0.0
 index
-  :: forall nat f (m :: nat) a. 
+  :: forall nat f (m :: nat) a.
       (CFoldable f, Dom f a, (One nat <= m) ~ 'True)
   => Int -> Sized f m a -> a
 index =  flip (!!)
@@ -273,7 +280,7 @@ sIndex = flip $ (%!!) @nat @f @n @c
 --
 -- Since 0.7.0.0
 head
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFoldable f, Dom f a, (Zero nat < n) ~ 'True)
   => Sized f n a -> a
 head = coerce $ chead @f @a
@@ -284,7 +291,7 @@ head = coerce $ chead @f @a
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.7.0.0
-last :: forall nat f (n :: nat) a. 
+last :: forall nat f (n :: nat) a.
   (HasOrdinal nat, (Zero nat < n) ~ 'True, CFoldable f, Dom f a)
   => Sized f n a -> a
 last = coerce $ clast @f @a
@@ -295,17 +302,22 @@ last = coerce $ clast @f @a
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.7.0.0
-uncons :: forall nat f (n :: nat) a. 
+uncons :: forall nat f (n :: nat) a.
   (PeanoOrder nat, SingI n, CFreeMonoid f, Dom f a, (Zero nat < n) ~ 'True)
   => Sized f n a -> Uncons f n a
 uncons =
   withSingI
     (sPred $ sing @n)
-  $ gcastWith 
+  $ gcastWith
+      (succAndPlusOneL $ sPred $ sing @n)
+  $ gcastWith
       (lneqRightPredSucc sZero (sing @n) Witness
       )
   $ uncurry (Uncons @nat @f @(Pred n) @a) . coerce (fromJust . cuncons @f @a)
 
+-- | 'uncons' with explicit specified length @n@
+--
+--   Since 0.7.0.0
 uncons'
   :: forall nat f (n :: nat) a proxy.
     (HasOrdinal nat, SingI n, CFreeMonoid f, Dom f a)
@@ -316,7 +328,7 @@ uncons' _  = withSingI (sSucc $ sing @n)
 
 data Uncons f (n :: nat) a where
   Uncons :: forall nat f (n :: nat) a. SingI n
-    => a -> Sized f n a -> Uncons f (Succ n) a
+    => a -> Sized f n a -> Uncons f (One nat + n) a
 
 -- | Take the 'init' and 'last' of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
@@ -329,7 +341,7 @@ unsnoc
   => Sized f n a -> Unsnoc f n a
 unsnoc = withSingI
     (sPred $ sing @n)
-  $ gcastWith 
+  $ gcastWith
       (lneqRightPredSucc sZero (sing @n) Witness
       )
   $ uncurry (Unsnoc @nat @f @(Pred n)) . coerce (fromJust . cunsnoc @f @a)
@@ -338,11 +350,14 @@ unsnoc = withSingI
 data Unsnoc f n a where
   Unsnoc :: forall nat f n a. Sized f (n :: nat) a -> a -> Unsnoc f (Succ n) a
 
+-- | 'unsnoc'' with explicit specified length @n@
+--
+--   Since 0.7.0.0
 unsnoc'
-  :: forall nat f (n :: nat) a proxy. 
+  :: forall nat f (n :: nat) a proxy.
     (HasOrdinal nat, SingI n, CFreeMonoid f, Dom f a)
   => proxy n -> Sized f (Succ n) a -> Unsnoc f (Succ n) a
-unsnoc' _  = 
+unsnoc' _  =
   withSingI (sSucc $ sing @n)
   $ withWitness (lneqZero $ sing @n) unsnoc
 {-# INLINE unsnoc' #-}
@@ -385,7 +400,7 @@ take
 take = coerce $ ctake @f @a . P.fromIntegral . toNatural @nat @n
 {-# INLINE take #-}
 
--- | @take k xs@ takes first @k@ element of @xs@ at most.
+-- | @'takeAtMost' k xs@ takes first at most @k@ elements of @xs@.
 --
 -- Since 0.7.0.0
 takeAtMost
@@ -485,7 +500,9 @@ replicate'
 replicate' = withSing replicate
 {-# INLINE replicate' #-}
 
--- | Since 0.7.0.0
+-- | Construct a sequence of the given length by applying the function to each index.
+--
+-- Since 0.7.0.0
 generate
   :: forall (nat :: Type) f (n :: nat) (a :: Type).
       (CFreeMonoid f, Dom f a, HasOrdinal nat)
@@ -532,7 +549,7 @@ genSeq n f = withSingI n $ Sized $ Seq.fromFunction (P.fromIntegral $ toNatural 
                        (f :: UV.Unbox a => Ordinal n -> a).
   generate n f = withSingI n $ Sized (UV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
 "generate/Seq" [~1] generate = genSeq
-#-}
+ #-}
 
 --------------------------------------------------------------------------------
 --- Concatenation
@@ -540,20 +557,20 @@ genSeq n f = withSingI n $ Sized $ Seq.fromFunction (P.fromIntegral $ toNatural 
 
 -- | Append an element to the head of sequence.
 --
--- Since 0.7.0.0
+-- Since 0.8.0.0
 cons
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
     (CFreeMonoid f, Dom f a)
-  => a -> Sized f n a -> Sized f (Succ n) a
+  => a -> Sized f n a -> Sized f (One nat + n) a
 cons = coerce $ ccons @f @a
 {-# INLINE cons #-}
 
 -- | Infix version of 'cons'.
 --
--- Since 0.7.0.0
+-- Since 0.8.0.0
 (<|)
   :: forall nat f (n :: nat) a. (CFreeMonoid f, Dom f a)
-  => a -> Sized f n a -> Sized f (Succ n) a
+  => a -> Sized f n a -> Sized f (One nat + n) a
 (<|) = cons
 {-# INLINE (<|) #-}
 infixr 5 <|
@@ -562,7 +579,7 @@ infixr 5 <|
 --
 -- Since 0.7.0.0
 snoc
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (CFreeMonoid f, Dom f a)
   => Sized f n a -> a -> Sized f (n + One nat) a
 snoc (Sized xs) a = Sized $ csnoc xs a
@@ -571,7 +588,7 @@ snoc (Sized xs) a = Sized $ csnoc xs a
 -- | Infix version of 'snoc'.
 --
 -- Since 0.7.0.0
-(|>) :: forall nat f (n :: nat) a. 
+(|>) :: forall nat f (n :: nat) a.
   (CFreeMonoid f, Dom f a) => Sized f n a -> a -> Sized f (n + One nat) a
 (|>) = snoc
 {-# INLINE (|>) #-}
@@ -581,7 +598,7 @@ infixl 5 |>
 --
 -- Since 0.7.0.0
 append
-  :: forall nat f (n :: nat) (m :: nat) a. 
+  :: forall nat f (n :: nat) (m :: nat) a.
     (CFreeMonoid f, Dom f a)
   => Sized f n a -> Sized f m a -> Sized f (n + m) a
 append = coerce $ mappend @(f a)
@@ -591,7 +608,7 @@ append = coerce $ mappend @(f a)
 --
 -- Since 0.7.0.0
 (++)
-  :: forall nat f (n :: nat) (m :: nat) a. 
+  :: forall nat f (n :: nat) (m :: nat) a.
     (CFreeMonoid f, Dom f a)
   => Sized f n a -> Sized f m a -> Sized f (n + m) a
 (++) = append
@@ -600,7 +617,7 @@ infixr 5 ++
 -- | Concatenates multiple sequences into one.
 --
 -- Since 0.7.0.0
-concat :: forall nat f' (m :: nat) f (n :: nat) a. 
+concat :: forall nat f' (m :: nat) f (n :: nat) a.
   (CFreeMonoid f, CFunctor f', CFoldable f', Dom f a, Dom f' (f a),
     Dom f' (Sized f n a)
   )
@@ -625,7 +642,7 @@ zip = coerce $ czip @f @a @b
 --
 -- Since 0.7.0.0
 zipSame
-  :: forall nat f (n :: nat) a b. 
+  :: forall nat f (n :: nat) a b.
       (Dom f a, CZip f, Dom f b, Dom f (a, b))
   => Sized f n a -> Sized f n b -> Sized f n (a, b)
 zipSame = coerce $ czip @f @a @b
@@ -635,7 +652,7 @@ zipSame = coerce $ czip @f @a @b
 --
 -- Since 0.7.0.0
 zipWith
-  :: forall nat f (n :: nat) a (m :: nat) b c. 
+  :: forall nat f (n :: nat) a (m :: nat) b c.
     (Dom f a, CZip f, Dom f b, CFreeMonoid f, Dom f c)
   => (a -> b -> c)
   -> Sized f n a
@@ -648,7 +665,7 @@ zipWith = coerce $ czipWith @f @a @b @c
 --
 -- Since 0.7.0.0
 zipWithSame
-  :: forall nat f (n :: nat) a b c. 
+  :: forall nat f (n :: nat) a b c.
       (Dom f a, CZip f, Dom f b, CFreeMonoid f, Dom f c)
   => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
 {-# SPECIALISE INLINE [1] zipWithSame
@@ -659,12 +676,12 @@ zipWithSame
   -> Sized V.Vector n a -> Sized V.Vector n b -> Sized V.Vector n c
   #-}
 {-# SPECIALISE INLINE [1] zipWithSame
-  :: (UV.Unbox a, UV.Unbox b, UV.Unbox c) 
+  :: (UV.Unbox a, UV.Unbox b, UV.Unbox c)
   => (a -> b -> c)
   -> Sized UV.Vector n a -> Sized UV.Vector n b -> Sized UV.Vector n c
   #-}
 {-# SPECIALISE INLINE [1] zipWithSame
-  :: (SV.Storable a, SV.Storable b, SV.Storable c) 
+  :: (SV.Storable a, SV.Storable b, SV.Storable c)
   => (a -> b -> c)
   -> Sized SV.Vector n a -> Sized SV.Vector n b -> Sized SV.Vector n c
   #-}
@@ -700,7 +717,7 @@ unzipWith = coerce $ cunzipWith @f @a @b @c
 --
 -- Since 0.7.0.0
 map
-  :: forall nat f (n :: nat) a b. 
+  :: forall nat f (n :: nat) a b.
     (CFreeMonoid f, Dom f a, Dom f b)
   => (a -> b) -> Sized f n a -> Sized f n b
 map f = Sized . cmap f . runSized
@@ -738,7 +755,7 @@ nub = toSomeSized . coerce (cnub @f @a)
 -- | Sorting sequence by ascending order.
 --
 -- Since 0.7.0.0
-sort :: forall nat f (n :: nat) a. 
+sort :: forall nat f (n :: nat) a.
     (CFreeMonoid f, Dom f a, Ord a)
   => Sized f n a -> Sized f n a
 sort = coerce $ csort @f @a
@@ -798,7 +815,7 @@ toList = coerce $ ctoList @f @a
 --
 --   Since 0.7.0.0 (type changed)
 fromList
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
   => Sing n -> [a] -> Maybe (Sized f n a)
 fromList Zero _ = Just $ Sized (mempty :: f a)
@@ -856,12 +873,12 @@ unsafeFromList' = withSing unsafeFromList
 --
 --   Since 0.5.0.0 (type changed)
 fromListWithDefault
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (HasOrdinal nat, Dom f a, CFreeMonoid f)
   => Sing n -> a -> [a] -> Sized f n a
 fromListWithDefault sn def xs =
   let len = P.fromIntegral $ toNatural sn
-  in Sized $ cfromList (ctake len xs) <> 
+  in Sized $ cfromList (ctake len xs) <>
         creplicate (len - clength xs) def
 {-# INLINABLE fromListWithDefault #-}
 
@@ -997,7 +1014,11 @@ dropWhile
 dropWhile = (toSomeSized .) . coerce (cdropWhile @f @a)
 {-# INLINE dropWhile #-}
 
--- | Since 0.7.0.0
+-- | Split the sequence into the longest prefix
+--   of elements that satisfy the predicate
+--   and the rest.
+--
+-- Since 0.7.0.0
 span
   :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
@@ -1005,7 +1026,11 @@ span
 span = (unsafePartitioned @nat @n .) . coerce (cspan @f @a)
 {-# INLINE span #-}
 
--- | Since 0.7.0.0
+-- | Split the sequence into the longest prefix
+--   of elements that do not satisfy the
+--   predicate and the rest.
+--
+-- Since 0.7.0.0
 break
   :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
@@ -1013,16 +1038,18 @@ break
 break = (unsafePartitioned @nat @n .) . coerce (cbreak @f @a)
 {-# INLINE break #-}
 
--- | Since 0.7.0.0
+-- | Split the sequence in two parts, the first one containing those elements that satisfy the predicate and the second one those that don't.
+--
+-- Since 0.7.0.0
 partition
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (HasOrdinal nat, CFreeMonoid f, Dom f a)
   => (a -> Bool) -> Sized f n a -> Partitioned f n a
 partition = (unsafePartitioned @nat @n .) . coerce (cpartition @f @a)
 {-# INLINE partition #-}
 
 unsafePartitioned
-  :: forall nat (n :: nat) f a. 
+  :: forall nat (n :: nat) f a.
     (HasOrdinal nat, CFreeMonoid f, Dom f a)
   => (f a, f a) -> Partitioned f n a
 unsafePartitioned (l, r) =
@@ -1031,7 +1058,7 @@ unsafePartitioned (l, r) =
       SomeSized' (lenR :: Sing nr) rs
       ) ->
         gcastWith
-        (unsafeCoerce $ Refl @() 
+        (unsafeCoerce $ Refl @()
           :: n :~: nl + nr
         )
         $ Partitioned lenL ls lenR rs
@@ -1043,7 +1070,7 @@ unsafePartitioned (l, r) =
 --
 -- Since 0.7.0.0
 elem
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
     (CFoldable f, Dom f a, Eq a)
   => a -> Sized f n a -> Bool
 elem = coerce $ celem @f @a
@@ -1053,7 +1080,7 @@ elem = coerce $ celem @f @a
 --
 -- Since 0.7.0.0
 notElem
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
     (CFoldable f, Dom f a, Eq a)
   => a -> Sized f n a -> Bool
 notElem = coerce $ cnotElem @f @a
@@ -1063,7 +1090,7 @@ notElem = coerce $ cnotElem @f @a
 --
 -- Since 0.7.0.0
 find
-  :: forall nat f (n :: nat) a. 
+  :: forall nat f (n :: nat) a.
       (CFoldable f, Dom f a)
   => (a -> Bool) -> Sized f n a -> Maybe a
 find = coerce $ cfind @f @a
@@ -1083,7 +1110,7 @@ find = coerce $ cfind @f @a
 --
 -- Since 0.7.0.0
 findIndex
-  :: forall nat f (n :: nat) a . 
+  :: forall nat f (n :: nat) a .
     (CFoldable f, Dom f a)
   => (a -> Bool) -> Sized f n a -> Maybe Int
 findIndex = coerce $ cfindIndex @f @a
@@ -1093,12 +1120,11 @@ findIndex = coerce $ cfindIndex @f @a
 --
 -- Since 0.7.0.0
 sFindIndex
-  :: forall nat f (n :: nat) a . 
+  :: forall nat f (n :: nat) a .
     (SingI (n :: nat), CFoldable f, Dom f a, HasOrdinal nat)
   => (a -> Bool) -> Sized f n a -> Maybe (Ordinal n)
 sFindIndex = (fmap toEnum .) . coerce (cfindIndex @f @a)
 {-# INLINE sFindIndex #-}
-
 
 -- | @'findIndices' p xs@ find all elements satisfying @p@ and returns their indices.
 --
@@ -1129,13 +1155,13 @@ sFindIndices p = P.fmap (toEnum . P.fromIntegral) . findIndices p
 -- | Returns the index of the given element in the list, if exists.
 --
 -- Since 0.7.0.0
-elemIndex :: forall nat f (n :: nat) a . 
+elemIndex :: forall nat f (n :: nat) a .
   (CFoldable f, Eq a, Dom f a) => a -> Sized f n a -> Maybe Int
 elemIndex = coerce $ celemIndex @f @a
 {-# INLINE elemIndex #-}
 
 -- | Ordinal version of 'elemIndex'.
---   Since 0.7.0.0, we no longer do boundary check inside the definition. 
+--   Since 0.7.0.0, we no longer do boundary check inside the definition.
 --
 --   Since 0.7.0.0
 sElemIndex, sUnsafeElemIndex :: forall nat f (n :: nat) a.
@@ -1161,7 +1187,7 @@ elemIndices = coerce $ celemIndices @f @a
 --
 -- Since 0.7.0.0
 sElemIndices
-  :: forall nat f (n :: nat) a . 
+  :: forall nat f (n :: nat) a .
     (CFoldable f, HasOrdinal nat, SingI (n :: nat), Dom f a, Eq a)
   => a -> Sized f n a -> [Ordinal n]
 sElemIndices = (fmap toEnum .) . elemIndices
@@ -1211,14 +1237,14 @@ slen ('viewSnoc' -> as '-::' _) = 'SS' (slen as)
 -- Since 0.7.0.0
 data ConsView f n a where
   NilCV :: ConsView f (Zero nat) a
-  (:-) :: SingI n => a -> Sized f n a -> ConsView f (Succ n) a
+  (:-) :: SingI n => a -> Sized f n a -> ConsView f (One nat + n) a
 
 infixr 5 :-
 
 -- | Case analysis for the cons-side of sequence.
 --
 -- Since 0.5.0.0 (type changed)
-viewCons :: forall nat f (n :: nat) a . 
+viewCons :: forall nat f (n :: nat) a .
   (HasOrdinal nat, SingI n, CFreeMonoid f,Dom f a)
   => Sized f n a
   -> ConsView f n a
@@ -1226,9 +1252,9 @@ viewCons sz = case zeroOrSucc $ sing @n of
   IsZero -> NilCV
   IsSucc n' ->
     withSingI n'
-    $ withSingI (sSucc n')
+    $ withSingI (sOne %+ n')
     $ case uncons' n' sz of
-        Uncons a xs -> (a :- xs)
+        Uncons a xs -> a :- xs
 
 -- | View of the left end of sequence (snoc-side).
 --
@@ -1241,14 +1267,14 @@ infixl 5 :-::
 -- | Case analysis for the snoc-side of sequence.
 --
 -- Since 0.5.0.0 (type changed)
-viewSnoc :: forall nat f (n :: nat) a. 
+viewSnoc :: forall nat f (n :: nat) a.
     (HasOrdinal nat, SingI n, CFreeMonoid f, Dom f a)
          => Sized f n a
          -> SnocView f n a
 viewSnoc sz = case zeroOrSucc (sing @n) of
   IsZero   -> NilSV
   IsSucc (n' :: Sing n') ->
-    withSingI n' $ 
+    withSingI n' $
     gcastWith (succAndPlusOneR n') $
     case unsnoc' n' sz of
       Unsnoc (xs :: Sized f m a) a ->
@@ -1295,9 +1321,9 @@ slen _           = error "impossible"
 infixr 5 :<
 -- | Pattern synonym for cons-side uncons.
 pattern (:<)
-  :: forall nat (f :: Type -> Type) a (n :: nat). 
+  :: forall nat (f :: Type -> Type) a (n :: nat).
       (Dom f a, PeanoOrder nat, SingI n, CFreeMonoid f)
-  => forall (n1 :: nat). (n ~ Succ n1, SingI n1)
+  => forall (n1 :: nat). (n ~ (One nat + n1), SingI n1)
   => a -> Sized f n1 a -> Sized f n a
 pattern a :< as <- (viewCons -> a :- as) where
    a :< as = a <| as
@@ -1311,7 +1337,7 @@ pattern NilL   <- (viewCons -> NilCV) where
 infixl 5 :>
 
 pattern (:>)
-  :: forall nat (f :: Type -> Type) a (n :: nat). 
+  :: forall nat (f :: Type -> Type) a (n :: nat).
       (Dom f a, PeanoOrder nat, SingI n, CFreeMonoid f)
   => forall (n1 :: nat). (n ~ (n1 + One nat), SingI n1)
   => Sized f n1 a -> a -> Sized f n a
@@ -1328,7 +1354,7 @@ class Dom f a => DomC f a
 instance Dom f a => DomC f a
 
 -- | Applicative instance, generalizing @'Data.Monoid.ZipList'@.
-instance 
+instance
   ( Functor f, CFreeMonoid f, CZip f,
     HasOrdinal nat, SingI n, forall a. DomC f a)
       => P.Applicative (Sized f (n :: nat)) where
@@ -1370,7 +1396,7 @@ instance (CFreeMonoid f, CZip f)
 --   we require more strong 'CZip' constraint here.
 instance (CZip f, CFreeMonoid f) => CSemialign (Sized f n) where
   calignWith = coerce (\f -> czipWith @f @a @b @c ((f .) . These))
-    :: forall a b c. 
+    :: forall a b c.
         (Dom f a, Dom f b, Dom f c)
     => (These a b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
   {-# INLINE [1] calignWith #-}
@@ -1378,11 +1404,11 @@ instance (CZip f, CFreeMonoid f) => CSemialign (Sized f n) where
     :: forall a b.
       (Dom f a, Dom f b, Dom f (These a b))
     => Sized f n a -> Sized f n b -> Sized f n (These a b)
-  {-# INLINE [1] calign #-} 
+  {-# INLINE [1] calign #-}
 
 instance (CZip f, CFreeMonoid f) => CZip (Sized f n) where
   czipWith = coerce $ czipWith @f @a @b @c
-    :: forall a b c. 
+    :: forall a b c.
         (Dom f a, Dom f b, Dom f c)
     => (a -> b -> c) -> Sized f n a -> Sized f n b -> Sized f n c
   {-# INLINE [1] czipWith #-}
@@ -1390,13 +1416,13 @@ instance (CZip f, CFreeMonoid f) => CZip (Sized f n) where
     :: forall a b.
       (Dom f a, Dom f b, Dom f (a, b))
     => Sized f n a -> Sized f n b -> Sized f n (a, b)
-  {-# INLINE [1] czip #-} 
+  {-# INLINE [1] czip #-}
 
-instance 
+instance
   (PeanoOrder nat, SingI (n :: nat), CZip f, CFreeMonoid f)
   => CRepeat (Sized f n) where
   crepeat = replicate'
-  {-# INLINE [1] crepeat #-}  
+  {-# INLINE [1] crepeat #-}
 
 instance CTraversable f => CTraversable (Sized f n) where
   ctraverse = \f -> fmap coerce . ctraverse f . runSized
