@@ -90,10 +90,10 @@ pattern SomeSized
 {-# COMPLETE SomeSized #-}
 pattern SomeSized n s = S.SomeSized'  n s
 
-length :: (Dom f a, CFoldable f, KnownNat n) => Sized f n a -> Int
+length :: (Dom f a, KnownNat n) => Sized f n a -> Int
 length = S.length @Nat
 
-sLength :: (Dom f a, CFoldable f) => Sized f n a -> SNat n
+sLength :: (Dom f a, KnownNat n) => Sized f n a -> SNat n
 sLength = S.sLength @Nat
 
 null :: (Dom f a, CFoldable f) => Sized f n a -> Bool

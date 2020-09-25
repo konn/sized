@@ -1,8 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs, NoStarIsType #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE AllowAmbiguousTypes, CPP, ConstraintKinds, DataKinds          #-}
+{-# LANGUAGE AllowAmbiguousTypes, ConstraintKinds, DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable, DeriveFoldable, DeriveFunctor             #-}
 {-# LANGUAGE DeriveTraversable, ExplicitNamespaces, FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances, GADTs, GeneralizedNewtypeDeriving          #-}
@@ -11,9 +11,6 @@
 {-# LANGUAGE PatternSynonyms, PolyKinds, QuantifiedConstraints, ScopedTypeVariables, RankNTypes   #-}
 {-# LANGUAGE StandaloneDeriving, TypeApplications, TypeFamilies            #-}
 {-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
-#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
-{-# LANGUAGE NoStarIsType #-}
-#endif
 
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
@@ -153,10 +150,10 @@ instance Eq (f a) => Eq (SomeSized' f nat a) where
 --   If you use @unsafeFromList@ or similar unsafe functions,
 --   this function may return different value from type-parameterized length.
 --
--- Since 0.7.0.0
+-- Since 0.8.0.0 (type changed)
 length
   :: forall nat f (n :: nat) a. 
-    (IsPeano nat, CFoldable f, Dom f a, SingI n)
+    (IsPeano nat, Dom f a, SingI n)
   => Sized f n a -> Int
 length = const $ fromIntegral $ toNatural $ sing @n
 {-# INLINE CONLIKE [1] length #-}
@@ -176,12 +173,11 @@ lengthPeanoZero = P.const 0
 
 -- | @Sing@ version of 'length'.
 --
--- Since 0.7.0.0 (type changed)
-sLength :: forall nat f (n :: nat) a. (HasOrdinal nat, CFoldable f, Dom f a)
+-- Since 0.8.0.0 (type changed)
+sLength :: forall nat f (n :: nat) a. 
+            (HasOrdinal nat, Dom f a, SingI n)
         => Sized f n a -> Sing n
-sLength (Sized xs) =
-  case fromNatural (P.fromIntegral $ clength xs) of
-    SomeSing (n :: Sing (k :: nat)) -> unsafeCoerce n
+sLength _ = sing @n
 {-# INLINE[2] sLength #-}
 
 -- | Test if the sequence is empty or not.

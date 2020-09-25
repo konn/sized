@@ -16,6 +16,7 @@ import           Data.Vector.Storable    (Storable)
 import qualified Data.Vector.Storable    as S
 import           Data.Vector.Unboxed     (Unbox)
 import qualified Data.Vector.Unboxed     as U
+import           Numeric.Natural         (Natural)
 import           Shared
 import           Test.Hspec
 import           Test.Inspection
@@ -79,6 +80,12 @@ zipWithSame_Seq = zipWithSame
 zipWith_Boxed :: (a -> b -> c) -> V.Vector a -> V.Vector b -> V.Vector c
 zipWith_Boxed = V.zipWith
 
+length_two :: Dom f a => Sized f 2 a -> Int
+length_two = SV.length
+
+const_two_dom :: Dom f a => Sized f 2 a -> Int
+const_two_dom = const 2
+
 main :: IO ()
 main = hspec $ do
   describe "czipWith" $ do
@@ -135,4 +142,18 @@ main = hspec $ do
           $(inspectTest $
               'zipWithSame_Unboxed_monomorphic
               ==- 'zipWith_Unboxed_monomorphic
+          )
+    describe "length" $ do
+      it "is a constant function when length is concrete (with Dom dictionary)" $
+        checkInspection
+          $(inspectTest $
+            'length_two ==- 'const_two_dom
+            )
+      it "doesn't contain Integer when the length is concrete" $
+        checkInspection
+          $(inspectTest $ hasNoType 'length_two ''Integer
+          )
+      it "doesn't contain Natural when the length is concrete" $
+        checkInspection
+          $(inspectTest $ hasNoType 'length_two ''Natural
           )
