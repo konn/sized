@@ -4,6 +4,7 @@
 {-# LANGUAGE CPP, DataKinds, GADTs, KindSignatures, MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeInType           #-}
 {-# LANGUAGE ViewPatterns                                                 #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NoStarIsType #-}
 -- | This module exports provides the functionality to make length-parametrized types
 --   from existing 'CFreeMonoid' sequential types,
@@ -871,7 +872,7 @@ slen ('viewSnoc' -> as '-::' _) = 'SS' (slen as)
 --
 -- Since 0.7.0.0
 type ConsView = 
-  S.ConsView :: (Type -> Type) -> Nat -> Type -> Type
+  (S.ConsView :: (Type -> Type) -> Nat -> Type -> Type)
 
 -- | Since 0.8.0.0
 pattern NilCV
@@ -900,7 +901,7 @@ viewCons = S.viewCons @Nat
 --
 -- Since 0.7.0.0
 type SnocView = 
-  S.SnocView :: (Type -> Type) -> Nat -> Type -> Type
+  (S.SnocView :: (Type -> Type) -> Nat -> Type -> Type)
 
 -- | Since 0.8.0.0
 pattern NilSV
