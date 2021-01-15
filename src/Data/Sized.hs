@@ -71,7 +71,7 @@ module Data.Sized
     -- ** Definitions
     viewCons, ConsView (..), viewSnoc, SnocView(..),
 
-    pattern Nil, pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+    pattern Nil, pattern (:<), pattern (:>),
   ) where
 
 import Data.Sized.Internal
@@ -97,13 +97,13 @@ import           Data.Singletons.Prelude      (SingI (..), SomeSing (..),
 import           Data.Singletons.Prelude.Bool (Sing)
 import           Data.Singletons.Prelude.Enum (PEnum (..), sPred, sSucc)
 import           Data.These                   (These (..))
-import           Data.Type.Equality           ((:~:) (..), gcastWith)
+import           Data.Type.Equality           (gcastWith, (:~:) (..))
 import qualified Data.Type.Natural            as Peano
-import           Data.Type.Natural.Class      (type (-.), IsPeano (..), One,
-                                               PNum (..), POrd (..),
-                                               PeanoOrder (..), S, SNum (..),
-                                               Zero, pattern Zero,
-                                               ZeroOrSucc (..), sOne, sZero)
+import           Data.Type.Natural.Class      (IsPeano (..), One, PNum (..),
+                                               POrd (..), PeanoOrder (..), S,
+                                               SNum (..), Zero, ZeroOrSucc (..),
+                                               pattern Zero, sOne, sZero,
+                                               type (-.))
 import           Data.Type.Ordinal            (HasOrdinal, Ordinal (..),
                                                ordToNatural)
 import           Data.Typeable                (Typeable)
@@ -1220,7 +1220,9 @@ slen ('viewSnoc' -> as '-::' _) = 'SS' (slen as)
 -- Since 0.7.0.0
 data ConsView f n a where
   NilCV :: ConsView f (Zero nat) a
-  (:-) :: SingI n => a -> Sized f n a -> ConsView f (One nat + n) a
+  (:-)
+    :: (SingI n, SingI (One nat + n))
+    => a -> Sized f n a -> ConsView f (One nat + n) a
 
 infixr 5 :-
 
@@ -1323,13 +1325,6 @@ pattern Nil :: forall nat f (n :: nat) a.
 pattern Nil <- (chkNil -> IsZero) where
   Nil = empty
 
--- | Pattern synonym for cons-side nil.
-{-# DEPRECATED NilL "Use Nil instead" #-}
-pattern NilL :: forall nat f (n :: nat) a.
-                (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
-             => (n ~ Zero nat) => Sized f n a
-pattern NilL = Nil
-
 infixl 5 :>
 
 -- | Pattern synonym for snoc-side unsnoc.
@@ -1341,18 +1336,8 @@ pattern (:>)
 pattern a :> b <- (viewSnoc -> a :-:: b) where
   a :> b = a |> b
 
-{-# DEPRECATED NilR "Use Nil instead" #-}
-pattern NilR :: forall nat f (n :: nat) a.
-                (SingI n, CFreeMonoid f, Dom f a,  HasOrdinal nat)
-             => n ~ Zero nat => Sized f n a
-pattern NilR = Nil
-
 {-# COMPLETE (:<), Nil #-}
-{-# COMPLETE (:<), NilL #-}
-{-# COMPLETE (:<), NilR #-}
 {-# COMPLETE (:>), Nil #-}
-{-# COMPLETE (:>), NilL #-}
-{-# COMPLETE (:>), NilR #-}
 
 class Dom f a => DomC f a
 instance Dom f a => DomC f a

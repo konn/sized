@@ -1,6 +1,10 @@
 cradle:
   stack:
+    stackYaml: stack-810.yaml
+    components:
     - path: "src"
       component: "sized:lib"
     - path: "test"
       component: "sized:test:optimisaion-test"
+    - path: "examples/rewritten.hs"
+      component: "examples/rewritten.hs"

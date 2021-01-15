@@ -1,10 +1,7 @@
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeOperators, NoImplicitPrelude #-}
 {-# LANGUAGE CPP, DataKinds, GADTs, KindSignatures, MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeInType           #-}
-{-# LANGUAGE ViewPatterns                                                 #-}
-{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE NoImplicitPrelude, NoMonomorphismRestriction, NoStarIsType   #-}
+{-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeApplications     #-}
+{-# LANGUAGE TypeInType, TypeOperators, ViewPatterns                      #-}
 -- | This module exports provides the functionality to make length-parametrized types
 --   from existing 'CFreeMonoid' sequential types,
 --   parametrised with peano numeral 'PN.Nat' kind.
@@ -15,7 +12,7 @@
 --
 --  This module also provides powerful view types and pattern synonyms to
 --  inspect the sized sequence. See <#ViewsAndPatterns Views and Patterns> for more detail.
-module Data.Sized.Peano
+module Data.Sized.Peano {-# DEPRECATED "Removed in future release" #-}
   ( -- * Main Data-types
     Sized(), SomeSized, pattern SomeSized, Ordinal,
     DomC(),
@@ -50,7 +47,7 @@ module Data.Sized.Peano
     Partitioned(), pattern Partitioned,
     takeWhile, dropWhile, span, break, partition,
     -- ** Searching
-    elem, notElem, find, findIndex, sFindIndex, 
+    elem, notElem, find, findIndex, sFindIndex,
     findIndices, sFindIndices,
     elemIndex, sElemIndex, sUnsafeElemIndex, elemIndices, sElemIndices,
     -- * Views and Patterns
@@ -70,20 +67,19 @@ module Data.Sized.Peano
 
     pattern Nil, pattern (:<), pattern NilL , pattern (:>), pattern NilR,
   ) where
+import           Data.Sized (DomC)
 import qualified Data.Sized as S
-import Data.Sized (DomC)
 
 import           Control.Subcategory
 import           Data.Kind                    (Type)
-import           Data.Singletons.Prelude      (SingI)
+import           Data.Singletons.Prelude      (POrd ((<=)), SingI)
 import           Data.Singletons.Prelude.Enum (PEnum (..))
+import           Data.Type.Natural            (Min, Nat (..), One, SNat, Two,
+                                               type (*), type (+), type (-))
+import           Data.Type.Natural.Class      (type (-.), type (<))
 import qualified Data.Type.Ordinal            as O
-import Prelude (Maybe, Ordering, Ord, Eq, Monoid, Bool(..), Int)
-import Data.Type.Natural (Two, Nat(..), SNat)
-import Data.Singletons.Prelude (POrd((<=)))
-import Data.Type.Natural.Class (type (-.), type (<))
-import Data.Type.Natural (Min, type (-), type (+), type (*))
-import Data.Type.Natural (One)
+import           Prelude                      (Bool (..), Eq, Int, Maybe,
+                                               Monoid, Ord, Ordering)
 
 type Ordinal = (O.Ordinal :: Nat -> Type)
 
@@ -509,7 +505,7 @@ reverse = S.reverse @Nat
 {-# INLINE intersperse #-}
 intersperse
   :: (Dom f a, CFreeMonoid f)
-  => a -> Sized f n a -> Sized f ((Two * n) -. One) a 
+  => a -> Sized f n a -> Sized f ((Two * n) -. One) a
 intersperse = S.intersperse @Nat
 
 -- | Remove all duplicates.
@@ -716,7 +712,7 @@ dropWhile = S.dropWhile @Nat
 -- | Split the sequence into the longest prefix
 --   of elements that satisfy the predicate
 --   and the rest.
--- 
+--
 -- Since 0.7.0.0
 {-# INLINE span #-}
 span :: (Dom f a, CFreeMonoid f) => (a -> Bool) -> Sized f n a -> Partitioned f n a
@@ -732,7 +728,7 @@ span = S.span @Nat
 break :: (Dom f a, CFreeMonoid f) => (a -> Bool) -> Sized f n a -> Partitioned f n a
 break = S.break @Nat
 
--- | Split the sequence in two parts, the first one containing those elements that satisfy the predicate and the second one those that don't. 
+-- | Split the sequence in two parts, the first one containing those elements that satisfy the predicate and the second one those that don't.
 --
 -- Since 0.7.0.0
 {-# INLINE partition #-}
@@ -802,13 +798,13 @@ sElemIndex, sUnsafeElemIndex :: (Dom f a, SingI n, CFoldable f, Eq a) => a -> Si
 {-# DEPRECATED sUnsafeElemIndex "Use sElemIndex instead" #-}
 
 -- | Ordinal version of 'elemIndex'.
---   Since 0.7.0.0, we no longer do boundary check inside the definition. 
+--   Since 0.7.0.0, we no longer do boundary check inside the definition.
 --
 --   Since 0.7.0.0
 sUnsafeElemIndex = S.sElemIndex @Nat
 
 -- | Ordinal version of 'elemIndex'.
---   Since 0.7.0.0, we no longer do boundary check inside the definition. 
+--   Since 0.7.0.0, we no longer do boundary check inside the definition.
 --
 --   Since 0.7.0.0
 sElemIndex = S.sElemIndex @Nat
@@ -973,7 +969,7 @@ infixr 5 :<
 
 -- | Pattern synonym for a nil sequence.
 pattern Nil
-  :: forall (f :: Type -> Type) a n. 
+  :: forall (f :: Type -> Type) a n.
       (Dom f a, SingI n, CFreeMonoid f)
   => (n ~ 'Z) => Sized f n a
 pattern Nil = S.Nil
@@ -986,7 +982,7 @@ pattern NilL = Nil
 
 -- | Pattern synonym for snoc-side unsnoc.
 pattern (:>)
-  :: forall (f :: Type -> Type) a (n :: Nat). 
+  :: forall (f :: Type -> Type) a (n :: Nat).
       (Dom f a, SingI n, CFreeMonoid f)
   => forall (n1 :: Nat). (n ~ (n1 + One), SingI n1)
   => Sized f n1 a -> a -> Sized f n a

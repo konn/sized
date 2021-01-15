@@ -1,4 +1,13 @@
 # Changelog
+## 0.9.0.0
+* This is transitional change: preparation for future rework of `type-natural`
+  - Types and constraints in `Data.Sized.Builtin` is now incompatible with `Data.Sized` and `Data.Sized.Peano`
+  - The latter two modules will be removed in future release.
+* Removes `NilL` and `NilR`
+* Compolete overhaul on `Data.Sized.Builtin`
+  - Stop using orders from `Data.Singletons`
+  - Types of nested pattern synonyms can now be inferred correctly
+
 ## 0.8.0.0
 * Makes `sLength` using `KnownNat` instance to get O(1) always.
 * Introduces `Nil` pattern and deprecates `NilL` and `NilR`.

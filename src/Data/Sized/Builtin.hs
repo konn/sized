@@ -1,11 +1,11 @@
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeOperators, NoImplicitPrelude #-}
-{-# LANGUAGE CPP, DataKinds, GADTs, KindSignatures, MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms, PolyKinds, RankNTypes, TypeInType           #-}
-{-# LANGUAGE ViewPatterns                                                 #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE CPP, ConstraintKinds, DataKinds, FlexibleContexts             #-}
+{-# LANGUAGE FlexibleInstances, GADTs, KindSignatures                      #-}
+{-# LANGUAGE MultiParamTypeClasses, NoImplicitPrelude                      #-}
+{-# LANGUAGE NoMonomorphismRestriction, NoStarIsType, PatternSynonyms      #-}
+{-# LANGUAGE PolyKinds, RankNTypes, ScopedTypeVariables, TypeApplications  #-}
+{-# LANGUAGE TypeInType, TypeOperators, UndecidableInstances, ViewPatterns #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
+{-# OPTIONS_GHC -fplugin Data.Singletons.TypeNats.Presburger #-}
 -- | This module exports provides the functionality to make length-parametrized types
 --   from existing 'CFreeMonoid' sequential types,
 --   parametrised with GHC's built in 'Nat' kind.
@@ -51,7 +51,7 @@ module Data.Sized.Builtin
     Partitioned(), pattern Partitioned,
     takeWhile, dropWhile, span, break, partition,
     -- ** Searching
-    elem, notElem, find, findIndex, sFindIndex, 
+    elem, notElem, find, findIndex, sFindIndex,
     findIndices, sFindIndices,
     elemIndex, sElemIndex, sUnsafeElemIndex, elemIndices, sElemIndices,
     -- * Views and Patterns
@@ -69,31 +69,41 @@ module Data.Sized.Builtin
     viewSnoc, SnocView,
     pattern (:-::), pattern NilSV,
 
-    pattern Nil, pattern (:<), pattern NilL , pattern (:>), pattern NilR,
+    pattern Nil, pattern (:<), pattern (:>),
   ) where
+import           Data.Sized (DomC)
 import qualified Data.Sized as S
-import Data.Sized (DomC)
 
 import           Control.Subcategory
+import           Data.Coerce                  (coerce)
 import           Data.Kind                    (Type)
-import           Data.Singletons.Prelude      (SingI)
+import           Data.Maybe                   (fromJust)
+import           Data.Singletons.Prelude      (SNum ((%+)), SingI (sing))
 import           Data.Singletons.Prelude.Enum (PEnum (..))
+import           Data.Singletons.TypeLits     (SNat, withKnownNat)
+import qualified Data.Sized.Internal          as Internal
+import           Data.Type.Natural            (IsPeano (toNatural, zeroOrSucc),
+                                               Min, PeanoOrder (plusMonotoneR))
+import           Data.Type.Natural.Class      (ZeroOrSucc (IsSucc, IsZero),
+                                               type (-.))
 import qualified Data.Type.Ordinal            as O
-import GHC.TypeNats (KnownNat, Nat) 
-import Prelude (Maybe, Ordering, Ord, Eq, Monoid, Bool(..), Int)
-import Data.Singletons.TypeLits (SNat)
-import Data.Singletons.Prelude (POrd((<=)))
-import Data.Type.Natural.Class (type (-.), type (<))
-import Data.Type.Natural (Min, type (-), type (+), type (*))
+import           GHC.TypeNats                 (KnownNat, Nat, type (*),
+                                               type (+), type (-), type (<=))
+import           Prelude                      (Bool (..), Eq, Int, Maybe,
+                                               Monoid, Ord, Ordering, const,
+                                               uncurry, ($), (.))
+import qualified Prelude                      as P
+import           Proof.Propositional          (IsTrue (Witness), withWitness)
 
 type Ordinal = (O.Ordinal :: Nat -> Type)
+type a < b = a + 1 <= b
 
 -- | @Sized@ wraps a sequential type 'f' and makes length-parametrized version.
 --
 -- Here, 'f' must satisfy @'CFreeMonoid' f@ and @Dom f a@.
 --
 -- Since 0.2.0.0
-type Sized = (S.Sized :: (Type -> Type) -> Nat -> Type -> Type)
+type Sized = (Internal.Sized :: (Type -> Type) -> Nat -> Type -> Type)
 
 -- | 'Sized' sequence with the length is existentially quantified.
 --   This type is used mostly when the return type's length cannot
@@ -143,9 +153,9 @@ null = S.null @Nat
 --   If you want to check boundary statically, use '%!!' or 'sIndex'.
 --
 -- Since 0.7.0.0
-(!!) :: (Dom f a, CFoldable f, (1 <= m) ~ 'True) => Sized f m a -> Int -> a
+(!!) :: forall f m a. (Dom f a, CFoldable f, (1 <= m)) => Sized f m a -> Int -> a
 {-# INLINE (!!) #-}
-(!!) = (S.!!) @Nat
+(!!) = coerce $ cindex @f @a
 
 -- | Safe indexing with 'Ordinal's.
 --
@@ -158,10 +168,10 @@ null = S.null @Nat
 --
 -- Since 0.7.0.0
 index
-  :: (Dom f a, CFoldable f, (1 <= m) ~ 'True)
+  :: (Dom f a, CFoldable f, (1 <= m))
   => Int -> Sized f m a -> a
 {-# INLINE index #-}
-index = S.index @Nat
+index = P.flip (!!)
 
 -- | Flipped version of '%!!'.
 --
@@ -175,18 +185,18 @@ sIndex = S.sIndex @Nat
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.7.0.0
-head :: (Dom f a, CFoldable f, (0 < n) ~ 'True) => Sized f n a -> a
+head :: forall f n a. (Dom f a, CFoldable f, (1 <= n)) => Sized f n a -> a
 {-# INLINE head #-}
-head = S.head @Nat
+head = coerce $ chead @f @a
 
 -- | Take the last element of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
 --   see  <#ViewsAndPatterns Views and Patterns> section.
 --
 -- Since 0.7.0.0
-last :: (Dom f a, CFoldable f, (0 < n) ~ 'True) => Sized f n a -> a
+last :: forall f n a. (Dom f a, CFoldable f, (0 < n)) => Sized f n a -> a
 {-# INLINE last #-}
-last = S.last @Nat
+last = coerce $ clast @f @a
 
 -- | Take the 'head' and 'tail' of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
@@ -194,20 +204,22 @@ last = S.last @Nat
 --
 -- Since 0.7.0.0
 uncons
-  :: (Dom f a, KnownNat n, CFreeMonoid f, (0 < n) ~ 'True)
+  :: forall f n a.
+    (Dom f a, KnownNat n, CFreeMonoid f, (0 < n))
   => Sized f n a -> Uncons f n a
 {-# INLINE uncons #-}
-uncons = S.uncons @Nat
+uncons =
+  uncurry (Uncons @f @(Pred n) @a) . coerce (fromJust . cuncons @f @a)
 
 -- | 'uncons' with explicit specified length @n@
 --
 --   Since 0.7.0.0
 uncons'
-  :: (Dom f a, KnownNat n, CFreeMonoid f, (0 < n) ~ 'True)
+  :: (Dom f a, KnownNat n, CFreeMonoid f, (0 < n))
   => Sized f n a
   -> Uncons f n a
 {-# INLINE uncons' #-}
-uncons' = S.uncons @Nat
+uncons' = uncons
 
 -- | Take the 'init' and 'last' of non-empty sequence.
 --   If you want to make case-analysis for general sequence,
@@ -215,10 +227,10 @@ uncons' = S.uncons @Nat
 --
 -- Since 0.7.0.0
 unsnoc
-  :: (Dom f a, KnownNat n, CFreeMonoid f, (0 < n) ~ 'True)
+  :: (Dom f a, KnownNat n, CFreeMonoid f, (0 < n))
   => Sized f n a -> Unsnoc f n a
 {-# INLINE unsnoc #-}
-unsnoc = S.unsnoc @Nat
+unsnoc = P.undefined
 
 -- | 'unsnoc'' with explicit specified length @n@
 --
@@ -227,12 +239,10 @@ unsnoc' :: (Dom f a, KnownNat n, CFreeMonoid f) => proxy n -> Sized f (n + 1) a 
 {-# INLINE unsnoc' #-}
 unsnoc' = S.unsnoc' @Nat
 
-type Uncons f (n :: Nat) a = S.Uncons f n a
-pattern Uncons
-  :: forall (f :: Type -> Type) (n :: Nat) a. ()
-  => forall (n1 :: Nat). (n ~ (1 + n1), SingI n1)
-  => a -> Sized f n1 a -> Uncons f n a
-pattern Uncons a as = S.Uncons a as
+data Uncons f n a where
+  Uncons :: forall f n a. KnownNat n
+    => a -> Sized f n a -> Uncons f (1 + n) a
+
 
 type Unsnoc f (n :: Nat) a = S.Unsnoc f n a
 
@@ -265,10 +275,10 @@ init = S.init @Nat
 --
 -- Since 0.7.0.0
 take
-  :: (Dom f a, CFreeMonoid f, (n <= m) ~ 'True)
+  :: forall n f m a. (Dom f a, CFreeMonoid f, (n <= m))
   => SNat n -> Sized f m a -> Sized f n a
 {-# INLINE take #-}
-take = S.take @Nat
+take = coerce $ ctake @f @a . P.fromIntegral . toNatural @Nat @n
 
 -- | @'takeAtMost' k xs@ takes first at most @k@ elements of @xs@.
 --
@@ -284,20 +294,20 @@ takeAtMost = S.takeAtMost @Nat
 --
 -- Since 0.7.0.0
 drop
-  :: (Dom f a, CFreeMonoid f, (n <= m) ~ 'True)
+  :: forall n f m a. (Dom f a, CFreeMonoid f, (n <= m))
   => SNat n -> Sized f m a -> Sized f (m - n) a
 {-# INLINE drop #-}
-drop = S.drop @Nat
+drop = coerce $ cdrop @f @a . P.fromIntegral . toNatural @Nat @n
 
 -- | @splitAt k xs@ split @xs@ at @k@, where
 -- the length of @xs@ should be less than or equal to @k@.
 --
 -- Since 0.7.0.0
 splitAt
-  :: (Dom f a, CFreeMonoid f, (n <= m) ~ 'True)
+  :: forall n f m a. (Dom f a, CFreeMonoid f, (n <= m))
   => SNat n -> Sized f m a -> (Sized f n a, Sized f (m - n) a)
 {-# INLINE splitAt #-}
-splitAt = S.splitAt @Nat
+splitAt = coerce $ csplitAt @f @a . P.fromIntegral . toNatural @Nat
 
 -- | @splitAtMost k xs@ split @xs@ at @k@.
 --   If @k@ exceeds the length of @xs@, then the second result value become empty.
@@ -508,7 +518,7 @@ reverse = S.reverse @Nat
 -- Since 0.7.0.0
 intersperse
   :: (Dom f a, CFreeMonoid f)
-  => a -> Sized f n a -> Sized f ((2 * n) -. 1) a 
+  => a -> Sized f n a -> Sized f ((2 * n) -. 1) a
 {-# INLINE intersperse #-}
 intersperse = S.intersperse @Nat
 
@@ -716,7 +726,7 @@ dropWhile = S.dropWhile @Nat
 -- | Split the sequence into the longest prefix
 --   of elements that satisfy the predicate
 --   and the rest.
--- 
+--
 -- Since 0.7.0.0
 span :: (Dom f a, CFreeMonoid f) => (a -> Bool) -> Sized f n a -> Partitioned f n a
 {-# INLINE span #-}
@@ -731,7 +741,7 @@ span = S.span @Nat
 break :: (Dom f a, CFreeMonoid f) => (a -> Bool) -> Sized f n a -> Partitioned f n a
 break = S.break @Nat
 
--- | Split the sequence in two parts, the first one containing those elements that satisfy the predicate and the second one those that don't. 
+-- | Split the sequence in two parts, the first one containing those elements that satisfy the predicate and the second one those that don't.
 --
 -- Since 0.7.0.0
 {-# INLINE partition #-}
@@ -801,13 +811,13 @@ sElemIndex, sUnsafeElemIndex :: (Dom f a, KnownNat n, CFoldable f, Eq a) => a ->
 {-# DEPRECATED sUnsafeElemIndex "Use sElemIndex instead" #-}
 
 -- | Ordinal version of 'elemIndex'.
---   Since 0.7.0.0, we no longer do boundary check inside the definition. 
+--   Since 0.7.0.0, we no longer do boundary check inside the definition.
 --
 --   Since 0.7.0.0
 sUnsafeElemIndex = S.sElemIndex @Nat
 
 -- | Ordinal version of 'elemIndex'.
---   Since 0.7.0.0, we no longer do boundary check inside the definition. 
+--   Since 0.7.0.0, we no longer do boundary check inside the definition.
 --
 --   Since 0.7.0.0
 sElemIndex = S.sElemIndex @Nat
@@ -870,37 +880,33 @@ slen ('viewSnoc' -> as '-::' _) = 'SS' (slen as)
 
 -- | View of the left end of sequence (cons-side).
 --
--- Since 0.7.0.0
-type ConsView = 
-  (S.ConsView :: (Type -> Type) -> Nat -> Type -> Type)
+-- Since 0.9.0.0
+data ConsView f n a where
+  NilCV :: ConsView f 0 a
+  (:-)
+    :: (KnownNat n, KnownNat (1 + n))
+    => a -> Sized f n a -> ConsView f (1 + n) a
 
--- | Since 0.8.0.0
-pattern NilCV
-  :: forall (f :: Type -> Type) n a. ()
-  => (n ~ 0)
-  => ConsView f n a
-pattern NilCV = S.NilCV
-
--- | Since 0.8.0.0
-pattern (:-)
-  :: forall (f :: Type -> Type) n a. ()
-  => forall n1. (n ~ (1 + n1), SingI n1)
-  => a -> Sized f n1 a -> ConsView f n a
-pattern l :- ls = l S.:- ls
 
 infixr 9 :-
-{-# COMPLETE NilCV, (:-) #-}
 
 -- | Case analysis for the cons-side of sequence.
 --
 -- Since 0.5.0.0 (type changed)
-viewCons :: (Dom f a, KnownNat n, CFreeMonoid f) => Sized f n a -> ConsView f n a
-viewCons = S.viewCons @Nat
+viewCons :: forall f n a. (Dom f a, KnownNat n, CFreeMonoid f) => Sized f n a -> ConsView f n a
+viewCons sz = case zeroOrSucc $ sing @n of
+  IsZero -> NilCV
+  IsSucc n' ->
+    withWitness (plusMonotoneR (sing @1) (sing @0) n' Witness) $
+    withKnownNat n'
+    $ withKnownNat (sing @1 %+ n')
+    $ case uncons' sz of
+        Uncons a xs -> a :- xs
 
 -- | View of the left end of sequence (snoc-side).
 --
 -- Since 0.7.0.0
-type SnocView = 
+type SnocView =
   (S.SnocView :: (Type -> Type) -> Nat -> Type -> Type)
 
 -- | Since 0.8.0.0
@@ -966,43 +972,34 @@ slen (_ ':<' as) = 'SS' (slen as)
 pattern (:<)
   :: forall (f :: Type -> Type) a (n :: Nat).
       (Dom f a, KnownNat n, CFreeMonoid f)
-  => forall (n1 :: Nat). (n ~ (1 + n1), SingI n1)
+  => forall (n1 :: Nat). (n ~ (1 + n1), KnownNat n1, KnownNat n)
   => a -> Sized f n1 a -> Sized f n a
-pattern a :< b = a S.:< b
+pattern a :< as <- (viewCons -> a :- as) where
+   a :< as = a <| as
 infixr 5 :<
+
+chkNil
+  :: forall f n a.
+      (KnownNat n)
+  => Sized f n a -> ZeroOrSucc n
+chkNil = const $ zeroOrSucc $ sing @n
 
 -- | Pattern synonym for a nil sequence.
 pattern Nil
-  :: forall (f :: Type -> Type) a n. 
+  :: forall (f :: Type -> Type) n a.
       (Dom f a, KnownNat n, CFreeMonoid f)
   => (n ~ 0) => Sized f n a
-pattern Nil = S.Nil
-
-{-# DEPRECATED NilL "Use Nil instead" #-}
--- | Pattern synonym for cons-side nil.
-pattern NilL :: forall f (n :: Nat) a.
-                (KnownNat n, CFreeMonoid f, Dom f a)
-             => n ~ 0 => Sized f n a
-pattern NilL = Nil
+pattern Nil <- (chkNil -> IsZero) where
+  Nil = empty
 
 -- | Pattern synonym for snoc-side unsnoc.
 pattern (:>)
-  :: forall (f :: Type -> Type) a (n :: Nat). 
+  :: forall (f :: Type -> Type) a (n :: Nat).
       (Dom f a, KnownNat n, CFreeMonoid f)
   => forall (n1 :: Nat). (n ~ (n1 + 1), SingI n1)
   => Sized f n1 a -> a -> Sized f n a
 pattern a :> b = a S.:> b
 infixl 5 :>
 
-{-# DEPRECATED NilR "Use Nil instead" #-}
--- | Pattern synonym for snoc-side nil.
-pattern NilR :: forall f (n :: Nat) a.
-                (CFreeMonoid f, Dom f a,  KnownNat n)
-             => n ~ 0 => Sized f n a
-pattern NilR = Nil
-{-# COMPLETE (:<), NilL #-}
-{-# COMPLETE (:<), NilR #-}
 {-# COMPLETE (:<), Nil #-}
-{-# COMPLETE (:>), NilL #-}
-{-# COMPLETE (:>), NilR #-}
 {-# COMPLETE (:>), Nil #-}
