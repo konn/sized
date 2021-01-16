@@ -7,8 +7,8 @@ packages:
 - '.'
 
 extra-deps: 
-- ghc-typelits-presburger-0.3.0.1
-- singletons-presburger-0.3.0.1
-- type-natural-0.9.0.0
+- ghc-typelits-presburger-0.4.0.0
+- singletons-presburger-0.4.0.0
+- type-natural-0.9.0.0@rev:1
 - inspection-testing-0.4.2.4
 - subcategories-0.1.0.0
