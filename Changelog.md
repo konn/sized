@@ -1,4 +1,10 @@
 # Changelog
+## 1.0.0.0
+* Drops Peano-numerals
+* Obsolete kind-generic classes
+* Now all types are kinded with GHC's builtin type-level naturals, and no type parameters for naturals.
+* Drops dependency for `singletons` package and their relatives.
+
 ## 0.9.0.0
 * This is transitional change: preparation for future rework of `type-natural`
   - Types and constraints in `Data.Sized.Builtin` is now incompatible with `Data.Sized` and `Data.Sized.Peano`

@@ -1,12 +1,12 @@
 cabal-version: >=2.0
 name:          sized
-version:       0.9.0.0
+version:       1.0.0.0
 license:       BSD3
 license-file:  LICENSE
 maintainer:    konn.jinro_at_gmail.com
 author:        Hiromi ISHII
 tested-with:
-    ghc ==8.6.5, ghc ==8.8.3, ghc ==8.10.1
+    ghc ==8.6.5, ghc ==8.8.4, ghc ==8.10.3
 
 synopsis:      Sized sequence data-types
 description:
