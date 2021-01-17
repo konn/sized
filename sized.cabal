@@ -34,7 +34,7 @@ library
         constraints,
         these,
         type-natural >=1.0,
-        ghc-typelits-presburger >=1.0,
+        ghc-typelits-presburger >=0.5,
         ghc-typelits-knownnat,
         mono-traversable >=0.10,
         subcategories,
