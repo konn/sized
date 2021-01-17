@@ -5,7 +5,7 @@ packages:
 - '.'
 
 extra-deps: 
-- ghc-typelits-presburger-0.4.0.0
-- singletons-presburger-0.4.0.0
-- type-natural-0.9.0.0@rev:1
+- ghc-typelits-presburger-0.5.0.0
+- github: konn/type-natural
+  commit: 31ec89595439612f239f10f42c0cdfcd1e175f95
 - inspection-testing-0.4.2.4

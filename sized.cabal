@@ -23,7 +23,6 @@ library
     exposed-modules:
         Data.Sized
         Data.Sized.Builtin
-        Data.Sized.Peano
         Data.Sized.Flipped
 
     hs-source-dirs:   src
@@ -37,9 +36,7 @@ library
         type-natural >=0.8.1.0,
         ghc-typelits-presburger >=0.4,
         ghc-typelits-knownnat,
-        singletons-presburger >=0.4,
         mono-traversable >=0.10,
-        singletons >=2.0,
         subcategories,
         deepseq >=1.4,
         hashable >=1.2,
@@ -61,9 +58,9 @@ test-suite optimisaion-test
         hspec -any,
         inspection-testing ^>=0.4,
         mono-traversable -any,
-        singletons -any,
         sized -any,
         template-haskell -any,
+        type-natural,
         th-lift -any,
         subcategories -any,
         vector -any

@@ -1,4 +1,4 @@
 {
-  "haskell.formattingProvider": "stylish-haskell",
+  "haskell.formattingProvider": "fourmolu",
   "editor.defaultFormatter": "haskell.haskell"
 }

@@ -1,6 +1,6 @@
 cradle:
   stack:
-    stackYaml: stack-810.yaml
+    stackYaml: stack.yaml
     components:
     - path: "src"
       component: "sized:lib"

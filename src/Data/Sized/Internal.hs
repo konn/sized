@@ -10,34 +10,31 @@
 #endif
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal (Sized(..)) where
-import           Control.DeepSeq         (NFData (..))
-import           Control.Lens.At         (Index, IxValue, Ixed (..))
-import           Control.Lens.Indexed    (FoldableWithIndex (..),
-                                          FunctorWithIndex (..),
-                                          TraversableWithIndex (..))
-import           Control.Subcategory     (CFoldable, CFunctor, Constrained)
-import           Data.Hashable           (Hashable (..))
-import           Data.Kind               (Type)
-import           Data.MonoTraversable    (Element, MonoFoldable (..),
-                                          MonoFunctor (..),
-                                          MonoTraversable (..))
-import qualified Data.Sequence           as Seq
-import           Data.Singletons.Prelude (SingI)
-import qualified Data.Type.Natural       as PN
-import           Data.Type.Ordinal       (HasOrdinal, Ordinal (..),
-                                          ordToNatural, unsafeNaturalToOrd)
-import           Data.Typeable           (Typeable)
-import qualified Data.Vector             as V
-import qualified Data.Vector.Storable    as SV
-import qualified Data.Vector.Unboxed     as UV
-import qualified GHC.TypeLits            as TL
+import           Control.DeepSeq      (NFData (..))
+import           Control.Lens.At      (Index, IxValue, Ixed (..))
+import           Control.Lens.Indexed (FoldableWithIndex (..),
+                                       FunctorWithIndex (..),
+                                       TraversableWithIndex (..))
+import           Control.Subcategory  (CFoldable, CFunctor, Constrained)
+import           Data.Hashable        (Hashable (..))
+import           Data.Kind            (Type)
+import           Data.MonoTraversable (Element, MonoFoldable (..),
+                                       MonoFunctor (..), MonoTraversable (..))
+import qualified Data.Sequence        as Seq
+import           Data.Type.Ordinal    (Ordinal (..), ordToNatural,
+                                       unsafeNaturalToOrd)
+import           Data.Typeable        (Typeable)
+import qualified Data.Vector          as V
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Unboxed  as UV
+import           GHC.TypeNats
 
 -- | @Sized@ wraps a sequential type 'f' and makes length-parametrized version.
 --
 -- Here, 'f' must be the instance of 'CFreeMonoid' (f a) a@ for all @a@.
 --
 -- Since 0.2.0.0
-newtype Sized (f :: Type -> Type) (n :: nat) a =
+newtype Sized (f :: Type -> Type) (n :: Nat) a =
   Sized { runSized :: f a
         } deriving (Eq, Ord, Typeable,
                     Functor, Foldable, Traversable)
@@ -86,42 +83,31 @@ type instance Index (Sized f n a) = Ordinal n
 
 -- | Since 0.3.0.0
 type instance IxValue (Sized f n a) = IxValue (f a)
-instance (Integral (Index (f a)), Ixed (f a), HasOrdinal nat)
-         => Ixed (Sized f (n :: nat) a) where
-  {-# SPECIALISE instance Ixed (Sized [] (n :: TL.Nat) a) #-}
-  {-# SPECIALISE instance Ixed (Sized [] (n :: PN.Nat) a) #-}
-  {-# SPECIALISE instance Ixed (Sized V.Vector (n :: TL.Nat) a) #-}
-  {-# SPECIALISE instance Ixed (Sized V.Vector (n :: PN.Nat) a) #-}
-  {-# SPECIALISE instance SV.Storable a => Ixed (Sized SV.Vector (n :: TL.Nat) a) #-}
-  {-# SPECIALISE instance SV.Storable a => Ixed (Sized SV.Vector (n :: PN.Nat) a) #-}
-  {-# SPECIALISE instance UV.Unbox a => Ixed (Sized UV.Vector (n :: TL.Nat) a) #-}
-  {-# SPECIALISE instance UV.Unbox a => Ixed (Sized UV.Vector (n :: PN.Nat) a) #-}
-  {-# SPECIALISE instance Ixed (Sized Seq.Seq (n :: TL.Nat) a) #-}
-  {-# SPECIALISE instance Ixed (Sized Seq.Seq (n :: PN.Nat) a) #-}
+instance (Integral (Index (f a)), Ixed (f a))
+         => Ixed (Sized f (n :: Nat) a) where
+  {-# SPECIALISE instance Ixed (Sized [] (n :: Nat) a) #-}
+  {-# SPECIALISE instance Ixed (Sized V.Vector (n :: Nat) a) #-}
+  {-# SPECIALISE instance SV.Storable a => Ixed (Sized SV.Vector (n :: Nat) a) #-}
+  {-# SPECIALISE instance UV.Unbox a => Ixed (Sized UV.Vector (n :: Nat) a) #-}
+  {-# SPECIALISE instance Ixed (Sized Seq.Seq (n :: Nat) a) #-}
   {-# INLINE ix #-}
   ix n f = fmap Sized . ix (fromIntegral $ ordToNatural n) f . runSized
 
 -- | Since 0.2.0.0
-instance (Integral i, FunctorWithIndex i f, HasOrdinal nat, SingI n)
-      => FunctorWithIndex (Ordinal (n :: nat)) (Sized f n) where
+instance (Integral i, FunctorWithIndex i f, KnownNat n)
+      => FunctorWithIndex (Ordinal n) (Sized f n) where
   imap f = Sized . imap (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE imap #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FunctorWithIndex (Ordinal n) (Sized [] (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FunctorWithIndex (Ordinal n) (Sized [] (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FunctorWithIndex (Ordinal n) (Sized V.Vector (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FunctorWithIndex (Ordinal n) (Sized V.Vector (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FunctorWithIndex (Ordinal n) (Sized Seq.Seq (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FunctorWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => FunctorWithIndex (Ordinal n) (Sized [] (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => FunctorWithIndex (Ordinal n) (Sized V.Vector (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => FunctorWithIndex (Ordinal n) (Sized Seq.Seq (n :: Nat)) #-}
 
 -- | Since 0.4.0.0
-instance {-# OVERLAPPABLE #-}  (Integral i, FoldableWithIndex i f, HasOrdinal nat, SingI n)
-      => FoldableWithIndex (Ordinal (n :: nat)) (Sized f n) where
+instance {-# OVERLAPPABLE #-}  (Integral i, FoldableWithIndex i f, KnownNat n)
+      => FoldableWithIndex (Ordinal n) (Sized f n) where
   ifoldMap f = ifoldMap (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE ifoldMap #-}
 
@@ -137,34 +123,21 @@ instance {-# OVERLAPPABLE #-}  (Integral i, FoldableWithIndex i f, HasOrdinal na
   ifoldl' f e = ifoldl' (f . unsafeNaturalToOrd . fromIntegral) e . runSized
   {-# INLINE ifoldl' #-}
 
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FoldableWithIndex (Ordinal n) (Sized [] (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FoldableWithIndex (Ordinal n) (Sized [] (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FoldableWithIndex (Ordinal n) (Sized V.Vector (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FoldableWithIndex (Ordinal n) (Sized V.Vector (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => FoldableWithIndex (Ordinal n) (Sized Seq.Seq (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => FoldableWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat)) #-}
-
+  {-# SPECIALISE instance KnownNat n
+                       => FoldableWithIndex (Ordinal n) (Sized [] (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => FoldableWithIndex (Ordinal n) (Sized V.Vector (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => FoldableWithIndex (Ordinal n) (Sized Seq.Seq (n :: Nat)) #-}
 -- | Since 0.2.0.0
-instance (Integral i, TraversableWithIndex i f, HasOrdinal nat, SingI n)
-      => TraversableWithIndex (Ordinal (n :: nat)) (Sized f n) where
+instance (Integral i, TraversableWithIndex i f, KnownNat n)
+      => TraversableWithIndex (Ordinal n) (Sized f n) where
   itraverse f = fmap Sized . itraverse (f . unsafeNaturalToOrd . fromIntegral) . runSized
   {-# INLINE itraverse #-}
 
-  {-# SPECIALISE instance TL.KnownNat n
-                       => TraversableWithIndex (Ordinal n) (Sized [] (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => TraversableWithIndex (Ordinal n) (Sized [] (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => TraversableWithIndex (Ordinal n) (Sized V.Vector (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => TraversableWithIndex (Ordinal n) (Sized V.Vector (n :: PN.Nat)) #-}
-  {-# SPECIALISE instance TL.KnownNat n
-                       => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: TL.Nat)) #-}
-  {-# SPECIALISE instance SingI n
-                       => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: PN.Nat))  #-}
+  {-# SPECIALISE instance KnownNat n
+                       => TraversableWithIndex (Ordinal n) (Sized [] (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => TraversableWithIndex (Ordinal n) (Sized V.Vector (n :: Nat)) #-}
+  {-# SPECIALISE instance KnownNat n
+                       => TraversableWithIndex (Ordinal n) (Sized Seq.Seq (n :: Nat)) #-}
