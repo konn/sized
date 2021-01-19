@@ -40,3 +40,5 @@ extra-deps:
   commit: e74a169799c899075f7cef2afb70a93ac38f9557
 - github: ekmett/lens
   commit: 6815396accd3d6ba14bd5bfe4dec2fe516fc33c4
+- indexed-traversable-instances-0.1@sha256:3aaf97040001bbe583e29c2b9c7d41660df265e6565a0d2ac09a3ed5b8bc21be,2874
+466
