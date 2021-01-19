@@ -69,7 +69,6 @@ jobs:
 
     - uses: haskell/actions/setup@v1.1.7
       with:
-        ghc-version: ${{ matrix.ghc }}
         enable-stack: true
 
     - name: Install dependencies
@@ -149,7 +148,6 @@ jobs:
           ${{runner.os}}-master-stack-work
     - uses: haskell/actions/setup@v1.1.7
       with:
-        ghc-version: ${{ matrix.ghc }}
         enable-stack: true
       
     - name: Build
@@ -228,7 +226,6 @@ jobs:
           ${{runner.os}}-master-stack-work
     - uses: haskell/actions/setup@v1.1.7
       with:
-        ghc-version: ${{ matrix.ghc }}
         enable-stack: true
 
     - name: Run tests
