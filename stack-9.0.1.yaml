@@ -34,3 +34,5 @@ extra-deps:
   commit: f1f1dbc376e5ce544b6535b851cda5404fe0a5ae
 - github: konn/type-natural
   commit: 74d1831b99b727934c23f40cdb5a3ce9b5634a39
+- github: konn/inspection-testing
+  commit: 3a03f48ad22ae67e475dc69ace83fa806ac74fb9
