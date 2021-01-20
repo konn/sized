@@ -34,6 +34,8 @@ extra-deps:
   commit: f1f1dbc376e5ce544b6535b851cda5404fe0a5ae
 - github: konn/type-natural
   commit: 74d1831b99b727934c23f40cdb5a3ce9b5634a39
+- github: konn/subcategories
+  commit: e9624630c8c79aaeb4b0c42ab8a7b1e35ec5a387
 - github: konn/inspection-testing
   commit: 570f8d0bf7aced93c1d9bf8c8e4c82b813a0ac3e
 - github: ekmett/profunctors
