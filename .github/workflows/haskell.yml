@@ -149,7 +149,8 @@ jobs:
     - uses: haskell/actions/setup@v1.1.7
       with:
         enable-stack: true
-      
+        stack-version: "2.7.1"
+
     - name: Build
       run: |
         stack --no-terminal build --test --no-run-tests
