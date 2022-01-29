@@ -1,0 +1,8 @@
+resolver: nightly-2022-01-27
+
+flags: {}
+packages:
+- .
+
+extra-deps:
+- subcategories-0.1.1.0

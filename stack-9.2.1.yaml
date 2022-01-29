@@ -1,0 +1,12 @@
+resolver: nightly-2022-01-27
+compiler: ghc-9.2.1
+compiler-match: exact
+
+flags: {}
+packages:
+- .
+
+extra-deps:
+- subcategories-0.2.0.0
+- th-desugar-1.13
+- lens-5.1

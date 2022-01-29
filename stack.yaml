@@ -1,13 +1,7 @@
-resolver: lts-16.31
+resolver: lts-18.12
 
 ghc-options:
   $everything: -haddock
 
 packages:
 - '.'
-
-extra-deps: 
-- ghc-typelits-presburger-0.5.0.0
-- type-natural-1.0.0.0
-- inspection-testing-0.4.2.4
-- subcategories-0.1.0.0
