@@ -1,6 +1,9 @@
 name: Haskell CI
 
-on: [push]
+on: 
+  push:
+  schedule:
+  - cron: "00 12 * * *"
 
 jobs:
   build-deps:
