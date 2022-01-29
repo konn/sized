@@ -1,6 +1,9 @@
 name: Haskell CI
 
-on: [push]
+on: 
+  push:
+  schedule:
+  - cron: "00 12 * * *"
 
 jobs:
   build-deps:
@@ -9,10 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.6.5", "8.8.4", "8.10.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2"]
         falliable: [false]
         include:
-          - ghc: "9.0.1"
+          - ghc: "9.2.1"
             falliable: true
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
@@ -85,10 +88,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.6.5", "8.8.4", "8.10.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2"]
         falliable: [false]
         include:
-          - ghc: "9.0.1"
+          - ghc: "9.2.1"
             falliable: true
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
@@ -163,10 +166,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.6.5", "8.8.4", "8.10.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2"]
         falliable: [false]
         include:
-          - ghc: "9.0.1"
+          - ghc: "9.2.1"
             falliable: true
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
