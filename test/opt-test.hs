@@ -10,6 +10,7 @@
 module Main where
 
 import Control.Subcategory
+import Data.Function ((&))
 import qualified Data.Sequence as Seq
 import Data.Sized (Sized, zipWithSame)
 import qualified Data.Sized as SV
@@ -22,8 +23,9 @@ import Data.Vector.Unboxed (Unbox)
 import qualified Data.Vector.Unboxed as U
 import Numeric.Natural (Natural)
 import Shared
-import Test.Hspec
-import Test.Inspection
+import Test.Tasty
+import Test.Tasty.ExpectedFailure (expectFailBecause)
+import Test.Tasty.Inspection
 
 type LSized = Sized []
 
@@ -34,6 +36,8 @@ type USized = Sized U.Vector
 type SSized = Sized S.Vector
 
 type SeqSized = Sized Seq.Seq
+
+{-# ANN module "HLINT: ignore Use camelCase" #-}
 
 zipWith_subcat_List ::
   (Int -> Int -> Int) -> [Int] -> [Int] -> [Int]
@@ -106,72 +110,69 @@ const_two_dom :: Dom f a => Sized f 2 a -> Int
 const_two_dom = const 2
 
 main :: IO ()
-main = hspec $ do
-  describe "czipWith" $ do
-    $( inspecting "doesn't contain type classes" $
-        hasNoTypeClasses 'zipWith_subcat_List
-     )
-  describe "zipWith" $ do
-    $( inspecting "doesn't contain type classes" $
-        hasNoTypeClasses 'zipWith_List
-     )
-  describe "zipWithSame" $ do
-    describe "list" $ do
-      it "doesn't contain type classes" $
-        checkInspection
-          $( inspectTest $
-              hasNoTypeClasses 'zipWithSame_List
-           )
-      it "is almost the same as the original zipWith (list)" $
-        checkInspection
-          $( inspectTest $
-              'zipWithSame_List ==- 'zipWith_List_Prel
-           )
-    describe "Boxed Vector" $ do
-      it "doesn't contain type classes, except for G.Vector" $
-        checkInspection
-          $( inspectTest $
-              'zipWithSame_Boxed
-                `hasNoTypeClassesExcept` [''G.Vector]
-           )
-      it "is almost the same as the original zipWith (Boxed)" $
-        checkInspection
-          $( inspectTest $
-              'zipWithSame_Boxed ==- 'zipWith_Boxed
-           )
-    describe "Unboxed Vector" $ do
-      it "doesn't contain type classes except for Unbox" $
-        if ghcVer >= GHC9_0
-          then pendingWith "This suffers from Simplified Subsumption"
-          else
-            checkInspection
-              $( inspectTest $
-                  'zipWithSame_Unboxed
-                    `hasNoTypeClassesExcept` [''Unbox]
-               )
-
-      it "doesn't contain type classes if fully instnatiated" $
-        checkInspection
-          $( inspectTest $
-              hasNoTypeClasses 'zipWithSame_Unboxed_monomorphic
-           )
-      it "is almost the same as the original zipWith, if fully instantiated" $
-        checkInspection
-          $( inspectTest $
-              'zipWithSame_Unboxed_monomorphic
-                ==- 'zipWith_Unboxed_monomorphic
-           )
-  describe "length" $ do
-    it "is a constant function when length is concrete (with Dom dictionary)" $
-      checkInspection
-        $( inspectTest $
-            'length_two ==- 'const_two_dom
-         )
-    it "doesn't contain Integer when the length is concrete" $
-      checkInspection
-        $( inspectTest $ hasNoType 'length_two ''Integer
-         )
-    it "doesn't contain Natural when the length is concrete" $
-      checkInspection
-        $( inspectTest $ hasNoType 'length_two ''Natural
-         )
+main =
+  defaultMain $
+    testGroup
+      "Optimisation test"
+      [ testGroup
+          "czipWith"
+          [ $( inspecting "doesn't contain type classes" $
+                hasNoTypeClasses 'zipWith_subcat_List
+             )
+          ]
+      , testGroup
+          "zipWith"
+          [ $( inspecting "doesn't contain type classes" $
+                hasNoTypeClasses 'zipWith_List
+             )
+          ]
+      , testGroup
+          "zipWithSame"
+          [ testGroup
+              "list"
+              [ $( inspecting "doesn't contain type classes" $
+                    hasNoTypeClasses 'zipWithSame_List
+                 )
+              , $( inspecting "is almost the same as the original zipWith (list)" $
+                    'zipWithSame_List ==- 'zipWith_List_Prel
+                 )
+              ]
+          , testGroup
+              "Boxed Vector"
+              [ $( inspecting "doesn't contain type classes, except for G.Vector" $
+                    'zipWithSame_Boxed
+                      `hasNoTypeClassesExcept` [''G.Vector]
+                 )
+              , $( inspecting "is almost the same as the original zipWith (Boxed)" $
+                    'zipWithSame_Boxed ==- 'zipWith_Boxed
+                 )
+              ]
+          , testGroup
+              "Unboxed Vector"
+              [ $( inspecting "doesn't contain type classes except for Unbox" $
+                    'zipWithSame_Unboxed
+                      `hasNoTypeClassesExcept` [''Unbox]
+                 )
+                  & if ghcVer >= GHC9_0
+                    then expectFailBecause "This suffers from Simplified Subsumption"
+                    else id
+              , $( inspecting "doesn't contain type classes if fully instnatiated" $
+                    hasNoTypeClasses 'zipWithSame_Unboxed_monomorphic
+                 )
+              , $( inspecting "is almost the same as the original zipWith, if fully instantiated" $
+                    'zipWithSame_Unboxed_monomorphic
+                      ==- 'zipWith_Unboxed_monomorphic
+                 )
+              ]
+          ]
+      , testGroup
+          "length"
+          [ $( inspecting "is a constant function when length is concrete (with Dom dictionary)" $
+                'length_two ==- 'const_two_dom
+             )
+          , $( inspecting "doesn't contain Integer when the length is concrete" $ hasNoType 'length_two ''Integer
+             )
+          , $( inspecting "doesn't contain Natural when the length is concrete" $ hasNoType 'length_two ''Natural
+             )
+          ]
+      ]

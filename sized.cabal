@@ -53,11 +53,13 @@ test-suite optimisaion-test
   build-depends:
       base
     , containers
-    , hspec
-    , inspection-testing  ^>=0.4
+    , inspection-testing        ^>=0.4
     , mono-traversable
     , sized
     , subcategories
+    , tasty
+    , tasty-expected-failure
+    , tasty-inspection-testing
     , template-haskell
     , th-lift
     , type-natural
