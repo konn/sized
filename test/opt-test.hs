@@ -11,8 +11,8 @@ module Main where
 
 import Control.Subcategory
 import qualified Data.Sequence as Seq
-import Data.Sized.Builtin (Sized, zipWithSame)
-import qualified Data.Sized.Builtin as SV
+import Data.Sized (Sized, zipWithSame)
+import qualified Data.Sized as SV
 import Data.Type.Natural
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as G
@@ -141,11 +141,15 @@ main = hspec $ do
            )
     describe "Unboxed Vector" $ do
       it "doesn't contain type classes except for Unbox" $
-        checkInspection
-          $( inspectTest $
-              'zipWithSame_Unboxed
-                `hasNoTypeClassesExcept` [''Unbox]
-           )
+        if ghcVer >= GHC9_0
+          then pendingWith "This suffers from Simplified Subsumption"
+          else
+            checkInspection
+              $( inspectTest $
+                  'zipWithSame_Unboxed
+                    `hasNoTypeClassesExcept` [''Unbox]
+               )
+
       it "doesn't contain type classes if fully instnatiated" $
         checkInspection
           $( inspectTest $
