@@ -24,7 +24,7 @@ jobs:
 
     - uses: actions/checkout@v2
     - name: Cache ~/.stack
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.stack
@@ -36,7 +36,7 @@ jobs:
           ${{runner.os}}-master-stack-global
 
     - name: Cache ~/.cabal
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.cabal
@@ -48,7 +48,7 @@ jobs:
           ${{runner.os}}-master-cabal
 
     - name: Cache ~/.ghc
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.ghc
@@ -60,7 +60,7 @@ jobs:
           ${{runner.os}}-master-ghc
 
     - name: Cache .stack-work
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: .stack-work
@@ -100,7 +100,7 @@ jobs:
 
     - uses: actions/checkout@v2
     - name: Cache ~/.stack
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.stack
@@ -113,7 +113,7 @@ jobs:
           ${{runner.os}}-master-stack-global
 
     - name: Cache ~/.cabal
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.cabal
@@ -126,7 +126,7 @@ jobs:
           ${{runner.os}}-master-cabal
 
     - name: Cache ~/.ghc
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.ghc
@@ -139,7 +139,7 @@ jobs:
           ${{runner.os}}-master-ghc
 
     - name: Cache .stack-work
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: .stack-work
@@ -178,7 +178,7 @@ jobs:
 
     - uses: actions/checkout@v2
     - name: Cache ~/.stack
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.stack
@@ -191,7 +191,7 @@ jobs:
           ${{runner.os}}-master-stack-global
 
     - name: Cache ~/.cabal
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.cabal
@@ -204,7 +204,7 @@ jobs:
           ${{runner.os}}-master-cabal
 
     - name: Cache ~/.ghc
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: ~/.ghc
@@ -217,7 +217,7 @@ jobs:
           ${{runner.os}}-master-ghc
 
     - name: Cache .stack-work
-      uses: actions/cache@v1.1.0
+      uses: actions/cache@v2
       with:
         # A directory to store and save the cache
         path: .stack-work
