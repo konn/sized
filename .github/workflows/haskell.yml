@@ -163,7 +163,7 @@ jobs:
         mkdir -p "${{ env.test-bins }}/bins"
         stack ide targets --stdout | grep :test: | cut -d: -f3 | while read TARG; do
           DEST="${{ env.test-bins }}/bins/${EXE}"
-          cp --clobber -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${DEST}"
+          cp --no-clobber -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${DEST}"
           strip "${DEST}"
           echo "${EXE}" >> "${{ env.test-bins }}/tests.txt"
         done
