@@ -161,7 +161,7 @@ jobs:
       run: |
         rm -rf "${{ env.test-bins }}"
         mkdir -p "${{ env.test-bins }}/bins"
-        stack ide targets --stdout | grep :test: | cut -d: -f3 | while read TARG; do
+        stack ide targets --stdout | grep :test: | cut -d: -f3 | while read EXE; do
           DEST="${{ env.test-bins }}/bins/${EXE}"
           cp --no-clobber -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${DEST}"
           strip "${DEST}"
