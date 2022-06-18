@@ -196,8 +196,10 @@ jobs:
         tar --use-compress-program=unzstd -xvf ${{ env.test-bins }}.tar.zst
     - name: Run tests
       run: |
-        while read TARGET; do
-          echo "Running: ${TARGET}"
-          chmod +x "./test-bins/bins/${TARGET}"
-          "./test-bins/bins/${TARGET}"
-        done < test-bins/tests.txt
+        cat ${{ env.test-bins }}/tests.txt | while read TARGET; do
+          if [ -n "${TARGET}" ]; then
+            echo "Running: ${TARGET}"
+            chmod +x "${{ env.test-bins }}/bins/${TARGET}"
+            "${{ env.test-bins }}/bins/${TARGET}"
+          fi
+        done
