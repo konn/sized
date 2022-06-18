@@ -161,7 +161,8 @@ jobs:
       run: |
         rm -rf "${{ env.test-bins }}"
         mkdir -p "${{ env.test-bins }}/bins"
-        stack ide targets --stdout | grep :test: | while read FILE; do
+        stack ide targets --stdout | grep :test: | while read EXE; do
+          echo "::info::Adding ${EXE}"
           cp -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${{ env.test-bins }}/bins"
           echo "${EXE}" >> "${{ env.test-bins }}/tests.txt"
         done
