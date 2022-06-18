@@ -73,10 +73,6 @@ jobs:
           ${{runner.os}}-master-stack-work-${{ matrix.ghc }}
           ${{runner.os}}-master-stack-work
 
-    - uses: haskell/actions/setup@v1.1.7
-      with:
-        enable-stack: true
-
     - name: Install dependencies
       run: |
         pwd
@@ -149,9 +145,6 @@ jobs:
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}
           ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.ghc }}
           ${{runner.os}}-master-stack-work
-    - uses: haskell/actions/setup@v1.1.7
-      with:
-        enable-stack: true
       
     - name: Build
       run: |
