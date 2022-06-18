@@ -165,7 +165,7 @@ jobs:
           cp -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${{ env.test-bins }}/bins"
           echo "${EXE}" >> "${{ env.test-bins }}/tests.txt"
         done
-        tar -cf "${{ env.test-bins }}.tar.zst" artifacts --use-compress-program="zstd -8"
+        tar -cf "${{ env.test-bins }}.tar.zst" "${{ env.test-bins }}" --use-compress-program="zstd -8"
     
     - name: Uploads test binary
       uses: actions/upload-artifact@v3
