@@ -1,7 +1,10 @@
 name: Haskell CI
 
 on: 
+  pull_request:
+    branches: ["*"]
   push:
+    branches: [master]
   schedule:
   - cron: "00 12 * * *"
 
