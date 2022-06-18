@@ -1,6 +1,6 @@
-cabal-version: >=2.0
+cabal-version: 2.0
 name:          sized
-version:       1.0.0.0
+version:       1.0.0.1
 license:       BSD3
 license-file:  LICENSE
 maintainer:    konn.jinro_at_gmail.com
