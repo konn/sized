@@ -8,6 +8,9 @@ on:
   schedule:
   - cron: "00 12 * * *"
 
+env:
+  test-bins: "test-bins"
+
 jobs:
   build-deps:
     continue-on-error: ${{ matrix.falliable }}
@@ -153,11 +156,26 @@ jobs:
     - name: Build
       run: |
         stack --no-terminal build --test --no-run-tests
+    
+    - name: Collect testing binaries
+      run: |
+        rm -rf "${{ env.test-bins }}"
+        mkdir -p "${{ env.test-bins }}/bins"
+        stack ide targets --stdout | grep :test: | while read FILE; do
+          cp -r "$(stack path --dist-dir)/build/${EXE}/${EXE}" "${{ env.test-bins }}/bins"
+          echo "${EXE}" >> "${{ env.test-bins }}/tests.txt"
+        done
+        tar -cf "${{ env.test-bins }}.tar.zst" artifacts --use-compress-program="zstd -8"
+    
+    - name: Uploads test binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-bins-${{ matrix.ghc }}
+        path: "${{ env.test-bins }}.tar.zst"
 
   test:
     continue-on-error: ${{ matrix.falliable }}
     needs:
-    - build-deps
     - build
     runs-on: ubuntu-latest
     strategy:
@@ -165,65 +183,21 @@ jobs:
       matrix: 
         ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.3"]
         falliable: [false]
-    env:
-      STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
-  
+
     steps:
 
     - uses: actions/checkout@v2
-    - name: Cache ~/.stack
-      uses: actions/cache@v1.1.0
+    - name: "Download test bins"
+      uses: actions/download-artifact@v3
       with:
-        # A directory to store and save the cache
-        path: ~/.stack
-        # An explicit key for restoring and saving the cache
-        key: ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
-        restore-keys: |
-          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}
-          ${{runner.os}}-${{github.ref}}-stack-global-${{ matrix.ghc }}
-          ${{runner.os}}-master-stack-global
-
-    - name: Cache ~/.cabal
-      uses: actions/cache@v1.1.0
-      with:
-        # A directory to store and save the cache
-        path: ~/.cabal
-        # An explicit key for restoring and saving the cache
-        key: ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
-        restore-keys: |
-          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}
-          ${{runner.os}}-${{github.ref}}-cabal-${{ matrix.ghc }}
-          ${{runner.os}}-master-cabal
-
-    - name: Cache ~/.ghc
-      uses: actions/cache@v1.1.0
-      with:
-        # A directory to store and save the cache
-        path: ~/.ghc
-        # An explicit key for restoring and saving the cache
-        key: ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        # An ordered list of keys to use for restoring the cache if no cache hit occurred for key
-        restore-keys: |
-          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}
-          ${{runner.os}}-${{github.ref}}-ghc-${{ matrix.ghc }}
-          ${{runner.os}}-master-ghc
-
-    - name: Cache .stack-work
-      uses: actions/cache@v1.1.0
-      with:
-        # A directory to store and save the cache
-        path: .stack-work
-        # An explicit key for restoring and saving the cache
-        key: ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}-${{ hashFiles('**/*.hs') }}
-        restore-keys: |
-          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.ghc }}-${{ hashFiles('stack.yaml.lock') }}
-          ${{runner.os}}-${{github.ref}}-stack-work-${{ matrix.ghc }}
-          ${{runner.os}}-master-stack-work
-    - uses: haskell/actions/setup@v1.1.7
-      with:
-        enable-stack: true
-
+        name: test-bins-${{ matrix.ghc }}
+    - name: "Extract bins"
+      run: | 
+        tar --use-compress-program=unzstd -xvf ${{ env.test-bins }}.tar.zst
     - name: Run tests
-      run: stack --no-terminal build --test
+      run: |
+        while read TARGET; do
+          echo "Running: ${TARGET}"
+          chmod +x "./test-bins/bins/${TARGET}"
+          "./test-bins/bins/${TARGET}"
+        done < test-bins/tests.txt
