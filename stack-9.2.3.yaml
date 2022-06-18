@@ -1,6 +1,4 @@
-resolver: nightly-2022-01-27
-compiler: ghc-9.2.1
-compiler-match: exact
+resolver: nightly-2022-06-18
 
 flags: {}
 packages:

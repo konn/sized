@@ -15,11 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.8.4", "8.10.7", "9.0.2"]
-        falliable: [false]
-        include:
-          - ghc: "9.2.1"
-            falliable: true
+        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.3"]
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
 
