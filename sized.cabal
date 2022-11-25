@@ -5,7 +5,7 @@ license:       BSD3
 license-file:  LICENSE
 maintainer:    konn.jinro_at_gmail.com
 author:        Hiromi ISHII
-tested-with:   GHC ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.3
+tested-with:   GHC ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.5 || ==9.4.3
 synopsis:      Sized sequence data-types
 description:
   A wrapper to make length-parametrized data-type from functorial data-types.
@@ -42,6 +42,9 @@ library
     , these
     , type-natural             >=1.0
     , vector                   >=0.12
+
+  if impl(ghc >=9.4)
+    build-depends: ghc-typelits-presburger >=0.7.1
 
 test-suite optimisaion-test
   type:             exitcode-stdio-1.0
