@@ -13,6 +13,7 @@ env:
 
 jobs:
   build-deps:
+    name: Build Dependencies
     continue-on-error: ${{ matrix.falliable }}
     runs-on: ubuntu-latest
     strategy:
@@ -80,6 +81,7 @@ jobs:
         stack --no-terminal build --test --no-run-tests --only-dependencies
 
   build:
+    name: Build
     continue-on-error: ${{ matrix.falliable }}
     needs:
     - build-deps
@@ -169,6 +171,7 @@ jobs:
         path: "${{ env.test-bins }}.tar.zst"
 
   test:
+    name: Test
     continue-on-error: ${{ matrix.falliable }}
     needs:
     - build
