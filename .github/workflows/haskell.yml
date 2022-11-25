@@ -13,12 +13,13 @@ env:
 
 jobs:
   build-deps:
+    name: Build Dependencies
     continue-on-error: ${{ matrix.falliable }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.5", "9.4.3"]
         falliable: [false]
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
@@ -80,6 +81,7 @@ jobs:
         stack --no-terminal build --test --no-run-tests --only-dependencies
 
   build:
+    name: Build
     continue-on-error: ${{ matrix.falliable }}
     needs:
     - build-deps
@@ -87,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.5", "9.4.3"]
         falliable: [false]
     env:
       STACK_YAML: "stack-${{ matrix.ghc }}.yaml"
@@ -169,6 +171,7 @@ jobs:
         path: "${{ env.test-bins }}.tar.zst"
 
   test:
+    name: Test
     continue-on-error: ${{ matrix.falliable }}
     needs:
     - build
@@ -176,7 +179,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: 
-        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.3"]
+        ghc: ["8.8.4", "8.10.7", "9.0.2", "9.2.5", "9.4.3"]
         falliable: [false]
 
     steps:
