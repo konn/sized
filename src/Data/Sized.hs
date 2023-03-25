@@ -25,7 +25,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Presburger #-}
+{-# OPTIONS_GHC -fplugin Data.Type.Natural.Presburger.MinMaxSolver #-}
 
 {- | This module provides the functionality to make length-parametrized types
    from existing 'CFreeMonoid' sequential types.
