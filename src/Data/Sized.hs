@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -10,13 +10,13 @@
 {-# LANGUAGE LiberalTypeSynonyms #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeInType #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
@@ -25,7 +25,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# OPTIONS_GHC -fenable-rewrite-rules #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults -fno-warn-orphans #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Presburger #-}
+{-# OPTIONS_GHC -fplugin Data.Type.Natural.Presburger.MinMaxSolver #-}
 
 {- | This module provides the functionality to make length-parametrized types
    from existing 'CFreeMonoid' sequential types.
@@ -278,7 +278,7 @@ length ::
   (Dom f a, KnownNat n) =>
   Sized f n a ->
   Int
-length = const $ fromIntegral $ toNatural $ sNat @n
+length = const $ fromIntegral $ fromSNat $ sNat @n
 {-# INLINE CONLIKE [1] length #-}
 
 lengthTLZero :: Sized f 0 a -> Int
@@ -539,7 +539,7 @@ take ::
   SNat n ->
   Sized f m a ->
   Sized f n a
-take = coerce $ ctake @f @a . P.fromIntegral . toNatural @n
+take = coerce $ ctake @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE take #-}
 
 {- | @'takeAtMost' k xs@ takes first at most @k@ elements of @xs@.
@@ -552,7 +552,7 @@ takeAtMost ::
   SNat n ->
   Sized f m a ->
   Sized f (Min n m) a
-takeAtMost = coerce $ ctake @f @a . P.fromIntegral . toNatural @n
+takeAtMost = coerce $ ctake @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE takeAtMost #-}
 
 {- | @drop k xs@ drops first @k@ element of @xs@ and returns
@@ -566,7 +566,7 @@ drop ::
   SNat n ->
   Sized f m a ->
   Sized f (m - n) a
-drop = coerce $ cdrop @f @a . P.fromIntegral . toNatural @n
+drop = coerce $ cdrop @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE drop #-}
 
 {- | @splitAt k xs@ split @xs@ at @k@, where
@@ -581,7 +581,7 @@ splitAt ::
   Sized f m a ->
   (Sized f n a, Sized f (m -. n) a)
 splitAt =
-  coerce $ csplitAt @f @a . P.fromIntegral . toNatural @n
+  coerce $ csplitAt @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE splitAt #-}
 
 {- | @splitAtMost k xs@ split @xs@ at @k@.
@@ -596,7 +596,7 @@ splitAtMost ::
   Sized f m a ->
   (Sized f (Min n m) a, Sized f (m -. n) a)
 splitAtMost =
-  coerce $ csplitAt @f @a . P.fromIntegral . toNatural @n
+  coerce $ csplitAt @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE splitAtMost #-}
 
 --------------------------------------------------------------------------------
@@ -652,7 +652,7 @@ replicate ::
   SNat n ->
   a ->
   Sized f n a
-replicate = coerce $ creplicate @f @a . P.fromIntegral . toNatural @n
+replicate = coerce $ creplicate @f @a . P.fromIntegral . fromSNat @n
 {-# INLINE replicate #-}
 
 {- | 'replicate' with the length inferred.
@@ -679,7 +679,7 @@ generate ::
   Sized f n a
 generate = coerce $ \sn ->
   withKnownNat sn $
-    cgenerate @f @a (P.fromIntegral $ toNatural @n sn)
+    cgenerate @f @a (P.fromIntegral $ fromSNat @n sn)
       . (. toEnum @(Ordinal n))
 {-# INLINE [1] generate #-}
 
@@ -700,7 +700,7 @@ genVector ::
   SNat n ->
   (Ordinal n -> a) ->
   Sized V.Vector n a
-genVector n f = withKnownNat n $ Sized $ V.generate (P.fromIntegral $ toNatural n) (f . toEnum)
+genVector n f = withKnownNat n $ Sized $ V.generate (P.fromIntegral $ fromSNat n) (f . toEnum)
 {-# INLINE genVector #-}
 
 genSVector ::
@@ -709,7 +709,7 @@ genSVector ::
   SNat n ->
   (Ordinal n -> a) ->
   Sized SV.Vector n a
-genSVector n f = withKnownNat n $ Sized $ SV.generate (P.fromIntegral $ toNatural n) (f . toEnum)
+genSVector n f = withKnownNat n $ Sized $ SV.generate (P.fromIntegral $ fromSNat n) (f . toEnum)
 {-# INLINE genSVector #-}
 
 genSeq ::
@@ -717,7 +717,7 @@ genSeq ::
   SNat n ->
   (Ordinal n -> a) ->
   Sized Seq.Seq n a
-genSeq n f = withKnownNat n $ Sized $ Seq.fromFunction (P.fromIntegral $ toNatural n) (f . toEnum)
+genSeq n f = withKnownNat n $ Sized $ Seq.fromFunction (P.fromIntegral $ fromSNat n) (f . toEnum)
 {-# INLINE genSeq #-}
 
 {-# RULES
@@ -731,7 +731,7 @@ genSeq n f = withKnownNat n $ Sized $ Seq.fromFunction (P.fromIntegral $ toNatur
   (n :: SNat (n :: Nat))
   (f :: UV.Unbox a => Ordinal n -> a).
   generate n f =
-    withKnownNat n $ Sized (UV.generate (P.fromIntegral $ toNatural n) (f . toEnum))
+    withKnownNat n $ Sized (UV.generate (P.fromIntegral $ fromSNat n) (f . toEnum))
 "generate/Seq" [~1] generate = genSeq
   #-}
 
@@ -1063,7 +1063,7 @@ fromList ::
   Maybe (Sized f n a)
 fromList Zero _ = Just $ Sized (mempty :: f a)
 fromList sn xs =
-  let len = P.fromIntegral $ toNatural sn
+  let len = P.fromIntegral $ fromSNat sn
    in if P.length xs < len
         then Nothing
         else Just $ Sized $ ctake len $ cfromList xs
@@ -1137,7 +1137,7 @@ fromListWithDefault ::
   [a] ->
   Sized f n a
 fromListWithDefault sn def xs =
-  let len = P.fromIntegral $ toNatural sn
+  let len = P.fromIntegral $ fromSNat sn
    in Sized $
         cfromList (ctake len xs)
           <> creplicate (len - clength xs) def
@@ -1181,7 +1181,7 @@ toSized ::
   f a ->
   Maybe (Sized f n a)
 toSized sn xs =
-  let len = P.fromIntegral $ toNatural sn
+  let len = P.fromIntegral $ fromSNat sn
    in if clength xs < len
         then Nothing
         else Just $ unsafeToSized sn $ ctake len xs
@@ -1232,7 +1232,7 @@ toSizedWithDefault ::
   f a ->
   Sized f n a
 toSizedWithDefault sn def xs =
-  let len = P.fromIntegral $ toNatural sn
+  let len = P.fromIntegral $ fromSNat sn
    in Sized $ ctake len xs <> creplicate (len - clength xs) def
 {-# INLINEABLE toSizedWithDefault #-}
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0.0
+
+* Supports GHC 9.6
+* Migrates to recent toolchains
+
 ## 1.0.0.1
 
 * Minor refactoring of test-suite to support inspection-testiong 0.5

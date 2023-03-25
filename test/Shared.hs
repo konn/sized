@@ -10,11 +10,13 @@ import Test.Tasty.Inspection
 inspecting :: String -> Obligation -> ExpQ
 inspecting title obl = inspectTest $ obl {testName = Just title}
 
-data GHCVer = GHC8_8 | GHC8_10 | GHC9_0 | GHC9_2 | GHC9_4
+data GHCVer = GHC8_8 | GHC8_10 | GHC9_0 | GHC9_2 | GHC9_4 | GHC9_6
   deriving (Show, Eq, Ord)
 
 ghcVer :: GHCVer
-#if __GLASGOW_HASKELL__ == 904
+#if __GLASGOW_HASKELL__ == 906
+ghcVer = GHC9_6
+#elif __GLASGOW_HASKELL__ == 904
 ghcVer = GHC9_4
 #elif __GLASGOW_HASKELL__ == 902
 ghcVer = GHC9_2
