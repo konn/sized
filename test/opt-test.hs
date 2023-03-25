@@ -148,11 +148,11 @@ main =
               ]
           , testGroup
               "Unboxed Vector"
-              [ $( inspecting "doesn't contain type classes except for Unbox (<GHC 9.0) and Vector, MVector (>= GHC 9)" $
+              [ $( inspecting "doesn't contain type classes except for Unbox, and Vector, MVector (>= GHC 9)" $
                     'zipWithSame_Unboxed
                       `hasNoTypeClassesExcept`
                         if ghcVer >= GHC9_0 
-                          then [''G.Vector, ''MG.MVector]
+                          then [''Unbox, ''G.Vector, ''MG.MVector]
                           else [''Unbox]
                  )
                  
