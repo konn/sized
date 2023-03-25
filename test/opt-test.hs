@@ -25,6 +25,7 @@ import Shared
 import Test.Tasty
 import Test.Tasty.Inspection
 import qualified Data.Vector.Generic.Mutable as MV
+import Control.Monad.Primitive (PrimMonad)
 
 type LSized = Sized []
 
@@ -152,7 +153,10 @@ main =
                     'zipWithSame_Unboxed
                       `hasNoTypeClassesExcept`
                         if ghcVer >= GHC9_0 
-                          then [''Unbox, ''G.Vector, ''MV.MVector]
+                          then 
+                            if ghcVer >= GHC9_6
+                            then [''Unbox, ''G.Vector, ''MV.MVector]
+                            else [''Unbox, ''G.Vector, ''MV.MVector, ''Monad, ''PrimMonad]
                           else [''Unbox]
                  )
                  

@@ -55,6 +55,7 @@ test-suite optimisaion-test
     , containers
     , inspection-testing        >=0.4 && <0.6
     , mono-traversable
+    , primitive
     , sized
     , subcategories
     , tasty
