@@ -1,7 +1,0 @@
-resolver: lts-18.12
-
-ghc-options:
-  $everything: -haddock
-
-packages:
-- '.'
