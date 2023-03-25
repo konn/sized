@@ -28,6 +28,17 @@ jobs:
           | sort -h | jq -ncR '[inputs | {ghc:  match("ghc-(.+)\\.config$", .) | .captures[0].string | select(.), plan: .}]' | tee configs.json
         echo "configs=$(cat configs.json)" >> "${GITHUB_OUTPUT}"
 
+  cabal-check:
+    name: Cabal Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: haskell/actions/setup@v2
+      with:
+        cabal-version: 3.10.1.0
+        enable-stack: false
+    - run: cabal check
+
   build:
     needs: [enumerate]
     strategy:
