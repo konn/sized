@@ -65,7 +65,6 @@ test-suite optimisaion-test
     , sized
     , subcategories
     , tasty
-    , tasty-expected-failure
     , tasty-inspection-testing
     , template-haskell
     , th-lift

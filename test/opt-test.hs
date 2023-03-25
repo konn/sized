@@ -10,7 +10,6 @@
 module Main where
 
 import Control.Subcategory
-import Data.Function ((&))
 import qualified Data.Sequence as Seq
 import Data.Sized (Sized, zipWithSame)
 import qualified Data.Sized as SV
@@ -24,8 +23,8 @@ import qualified Data.Vector.Unboxed as U
 import Numeric.Natural (Natural)
 import Shared
 import Test.Tasty
-import Test.Tasty.ExpectedFailure (expectFailBecause)
 import Test.Tasty.Inspection
+import qualified Data.Vector.Mutable as MG
 
 type LSized = Sized []
 
@@ -149,13 +148,14 @@ main =
               ]
           , testGroup
               "Unboxed Vector"
-              [ $( inspecting "doesn't contain type classes except for Unbox" $
+              [ $( inspecting "doesn't contain type classes except for Unbox (<GHC 9.0) and Vector, MVector (>= GHC 9)" $
                     'zipWithSame_Unboxed
-                      `hasNoTypeClassesExcept` [''Unbox]
+                      `hasNoTypeClassesExcept`
+                        if ghcVer >= GHC9_0 
+                          then [''G.Vector, ''MG.MVector]
+                          else [''Unbox]
                  )
-                  & if ghcVer >= GHC9_0
-                    then expectFailBecause "This suffers from Simplified Subsumption"
-                    else id
+                 
               , $( inspecting "doesn't contain type classes if fully instnatiated" $
                     hasNoTypeClasses 'zipWithSame_Unboxed_monomorphic
                  )
