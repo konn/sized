@@ -1,13 +1,11 @@
-{-# LANGUAGE CPP, ConstraintKinds, DataKinds, DeriveDataTypeable           #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, DeriveDataTypeable           #-}
 {-# LANGUAGE DeriveFunctor, DeriveTraversable, DerivingStrategies          #-}
 {-# LANGUAGE ExplicitNamespaces, FlexibleContexts, FlexibleInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, KindSignatures                    #-}
 {-# LANGUAGE LiberalTypeSynonyms, MultiParamTypeClasses, PolyKinds         #-}
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, StandaloneDeriving           #-}
-{-# LANGUAGE TypeFamilies, TypeInType, TypeOperators, UndecidableInstances #-}
-#if __GLASGOW_HASKELL__ && __GLASGOW_HASKELL__ >= 806
+{-# LANGUAGE TypeFamilies, DataKinds, PolyKinds, TypeOperators, UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
-#endif
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.Sized.Internal (Sized(..)) where
 import           Control.DeepSeq      (NFData (..))
