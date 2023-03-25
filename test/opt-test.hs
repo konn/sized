@@ -24,7 +24,7 @@ import Numeric.Natural (Natural)
 import Shared
 import Test.Tasty
 import Test.Tasty.Inspection
-import qualified Data.Vector.Mutable as MG
+import qualified Data.Vector.Generic.Mutable as MV
 
 type LSized = Sized []
 
@@ -152,7 +152,7 @@ main =
                     'zipWithSame_Unboxed
                       `hasNoTypeClassesExcept`
                         if ghcVer >= GHC9_0 
-                          then [''Unbox, ''G.Vector, ''MG.MVector]
+                          then [''Unbox, ''G.Vector, ''MV.MVector]
                           else [''Unbox]
                  )
                  
