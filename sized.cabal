@@ -5,7 +5,7 @@ license:       BSD3
 license-file:  LICENSE
 maintainer:    konn.jinro_at_gmail.com
 author:        Hiromi ISHII
-tested-with:   GHC ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1
+tested-with:   GHC ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.4 || ==9.8.2
 extra-doc-files: ./Changelog.md
 synopsis:      Sized sequence data-types
 description:
