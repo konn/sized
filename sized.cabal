@@ -6,7 +6,10 @@ license-file: LICENSE
 maintainer: konn.jinro_at_gmail.com
 author: Hiromi ISHII
 tested-with: ghc ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.4 || ==9.8.2
-extra-doc-files: ./Changelog.md
+extra-doc-files:
+  Changelog.md
+  README.md
+
 synopsis: Sized sequence data-types
 description:
   A wrapper to make length-parametrized data-type from functorial data-types.
