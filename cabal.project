@@ -1,2 +1,8 @@
 packages: *.cabal
-index-state: hackage.haskell.org 2023-03-25T02:42:15Z
+if impl(ghc >= 9.8.4)
+  packages:
+      https://hackage.haskell.org/package/equational-reasoning-0.7.1.0/candidate/equational-reasoning-0.7.1.0.tar.gz
+      https://hackage.haskell.org/package/ghc-typelits-presburger-0.7.4.1/candidate/ghc-typelits-presburger-0.7.4.1.tar.gz
+      https://hackage.haskell.org/package/type-natural-1.3.0.2/candidate/type-natural-1.3.0.2.tar.gz
+
+index-state: hackage.haskell.org 2025-01-02T02:16:34Z
