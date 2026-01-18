@@ -21,7 +21,7 @@ build-type: Simple
 
 source-repository head
   type: git
-  location: git://github.com/konn/sized.git
+  location: http://github.com/konn/sized.git
 
 library
   exposed-modules:
