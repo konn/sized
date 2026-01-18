@@ -26,6 +26,7 @@ import Test.Tasty
 import Test.Tasty.Inspection
 import qualified Data.Vector.Generic.Mutable as MV
 import Control.Monad.Primitive (PrimMonad)
+import qualified GHC.Base as GHC
 
 type LSized = Sized []
 
@@ -152,15 +153,16 @@ main =
               [ $( inspecting "doesn't contain type classes except for Unbox, and Vector, MVector (>= GHC 9)" $
                     'zipWithSame_Unboxed
                       `hasNoTypeClassesExcept`
-                        if ghcVer >= GHC9_0 
-                          then 
-                            if ghcVer >= GHC9_6
-                            then [''Unbox, ''G.Vector, ''MV.MVector]
-                            else [''Unbox, ''G.Vector, ''MV.MVector, ''Monad, ''PrimMonad]
-                          else [''Unbox]
+                        [''Unbox, ''G.Vector, ''MV.MVector]
                  )
                  
-              , $( inspecting "doesn't contain type classes if fully instnatiated" $
+              , if ghcVer >= GHC9_14
+                then
+                  $( inspecting "doesn't contain type classes other than ImplicitParam if fully instnatiated" $
+                    'zipWithSame_Unboxed_monomorphic `hasNoTypeClassesExcept` [''GHC.IP]
+                 )
+                else 
+                  $( inspecting "doesn't contain type classes if fully instnatiated" $
                     hasNoTypeClasses 'zipWithSame_Unboxed_monomorphic
                  )
               , $( inspecting "is almost the same as the original zipWith, if fully instantiated" $
