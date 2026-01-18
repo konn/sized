@@ -34,7 +34,7 @@ jobs:
         with:
           cabal-version: 3.16.1.0
           enable-stack: false
-      - run: cabal check
+      - run: cabal check -imissing-upper-bounds
 
   build:
     needs: [enumerate]
